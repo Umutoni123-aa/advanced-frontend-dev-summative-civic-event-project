@@ -40,7 +40,7 @@
                 $submit.prop("disabled", true).text("Saving...");
                 apiRequest({
                     url: BASE_URL + "/api/announcements/" + encodeURIComponent(id), method: "PUT", processData: false, contentType: false, data: formData,
-                    success: function (response) { showToast(response.message || "Announcement updated.", "success"); window.location.replace("announcements.html"); },
+                    success: function (response) { showToastAfterNavigation(response.message || "Announcement updated.", "success"); window.location.replace("announcements.html"); },
                     error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to update announcement."); },
                     complete: function () { $submit.prop("disabled", false).text("Save changes"); }
                 });

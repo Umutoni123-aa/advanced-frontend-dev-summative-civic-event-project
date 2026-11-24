@@ -39,7 +39,7 @@
                 var $submit = $("#edit-submit"); $submit.prop("disabled", true).text("Saving...");
                 apiRequest({
                     url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "PUT", processData: false, contentType: false, data: formData,
-                    success: function (response) { showToast(response.message || "Promo updated.", "success"); window.location.replace("promos.html"); },
+                    success: function (response) { showToastAfterNavigation(response.message || "Promo updated.", "success"); window.location.replace("promos.html"); },
                     error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to update promo."); },
                     complete: function () { $submit.prop("disabled", false).text("Save changes"); }
                 });

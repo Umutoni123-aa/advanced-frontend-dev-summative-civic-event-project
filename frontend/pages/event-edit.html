@@ -169,7 +169,7 @@
                         return xhr;
                     },
                     success: function () {
-                        showToast("Event updated successfully.", "success");
+                        showToastAfterNavigation("Event updated successfully.", "success");
                         window.location.replace("events.html");
                     },
                     error: function (xhr) {

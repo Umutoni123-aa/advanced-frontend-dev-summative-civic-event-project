@@ -42,7 +42,7 @@
                 apiRequest({
                     url: BASE_URL + "/api/promos", method: "POST", processData: false, contentType: false, data: formData,
                     xhr: function () { var xhr = $.ajaxSettings.xhr(); if (xhr.upload) xhr.upload.addEventListener("progress", function (progress) { if (!progress.lengthComputable) return; var percent = Math.round(progress.loaded / progress.total * 100); $("#upload-progress").css("width", percent + "%"); $("#upload-progress").parent().attr("aria-valuenow", percent); $("#upload-progress-text").text("Uploading: " + percent + "%"); }); return xhr; },
-                    success: function (response) { showToast(response.message || "Promo created successfully.", "success"); window.location.replace("promos.html"); },
+                    success: function (response) { showToastAfterNavigation(response.message || "Promo created successfully.", "success"); window.location.replace("promos.html"); },
                     error: function (xhr) { $("#promo-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to create promo."); },
                     complete: function () { $submit.prop("disabled", false).text("Create promo"); }
                 });

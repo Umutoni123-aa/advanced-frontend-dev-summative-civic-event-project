@@ -26,7 +26,7 @@
                     </p>
                 </div>
                 <p id="event-description" class="mt-6 whitespace-pre-line text-slate-700"></p>
-                <button id="registration-button" type="button" class="mt-6 hidden rounded-md bg-blue-800 px-5 py-3 font-semibold text-white hover:bg-blue-900 disabled:opacity-60"></button>
+                <button id="registration-button" type="button" class="mt-6 hidden rounded-md bg-blue-800 px-5 py-3 font-semibold text-white hover:bg-blue-900 disabled:opacity-60" aria-live="polite"></button>
 
                 <section id="registrants-section" class="mt-10 hidden" aria-labelledby="registrants-heading">
                     <h2 id="registrants-heading" class="text-xl font-bold">Registered attendees</h2>
@@ -122,6 +122,11 @@
                         registered = registrations.some(function (registration) {
                             return registration.event_id === eventId && registration.status !== "cancelled";
                         });
+                        setRegistrationButton();
+                    },
+                    error: function () {
+                        // Keep Register available if the optional status lookup fails.
+                        registered = false;
                         setRegistrationButton();
                     }
                 });
@@ -229,6 +234,7 @@
 
                     $("#detail-loading").hide();
                     $("#event-detail").removeClass("hidden");
+                    setRegistrationButton();
                     loadRegistrationStatus();
                     loadAttendees();
                     loadFeedback();

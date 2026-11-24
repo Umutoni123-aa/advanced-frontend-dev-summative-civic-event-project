@@ -68,7 +68,7 @@
                         return xhr;
                     },
                     success: function (response) {
-                        showToast(response.message || "Announcement created successfully.", "success");
+                        showToastAfterNavigation(response.message || "Announcement created successfully.", "success");
                         window.location.replace("announcements.html");
                     },
                     error: function (xhr) { $("#announcement-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to create announcement."); },

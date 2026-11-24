@@ -38,7 +38,20 @@
 
     window.showToast = showToast;
 
+    window.showToastAfterNavigation = function showToastAfterNavigation(message, type) {
+        sessionStorage.setItem("civicEventsPendingToastMessage", message);
+        sessionStorage.setItem("civicEventsPendingToastType", type || "success");
+    };
+
     $(function () {
+        var pendingToast = sessionStorage.getItem("civicEventsPendingToastMessage");
+        var pendingToastType = sessionStorage.getItem("civicEventsPendingToastType");
+        if (pendingToast) {
+            sessionStorage.removeItem("civicEventsPendingToastMessage");
+            sessionStorage.removeItem("civicEventsPendingToastType");
+            showToast(pendingToast, pendingToastType);
+        }
+
         var base = basePath();
         var user = window.Auth && window.Auth.getUser();
         var isAdmin = user && user.role === "admin";

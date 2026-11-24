@@ -136,7 +136,7 @@
                         return xhr;
                     },
                     success: function () {
-                        showToast("Event created successfully.", "success");
+                        showToastAfterNavigation("Event created successfully.", "success");
                         window.location.replace("events.html");
                     },
                     error: function (xhr) {

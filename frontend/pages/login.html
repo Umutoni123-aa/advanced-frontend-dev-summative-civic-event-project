@@ -132,7 +132,7 @@
                             role: user.role
                         }, $("#remember-me").is(":checked"));
 
-                        window.showToast("Login successful.", "success");
+                        window.showToastAfterNavigation("Login successful.", "success");
                         window.location.replace(user.role === "admin" ? "dashboard.html" : "events.html");
                     },
                     error: function (xhr) {
