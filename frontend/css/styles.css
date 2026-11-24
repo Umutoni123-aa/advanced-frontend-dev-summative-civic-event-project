@@ -13,6 +13,9 @@ body {
 
 main {
     flex: 1;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 :focus-visible {
@@ -48,6 +51,43 @@ input:disabled,
 select:disabled,
 textarea:disabled {
     cursor: not-allowed;
+}
+
+button,
+input,
+select {
+    min-height: 2.75rem;
+    max-width: 100%;
+}
+
+textarea {
+    max-width: 100%;
+}
+
+img,
+video,
+audio,
+canvas,
+svg {
+    max-width: 100%;
+}
+
+@media (max-width: 767px) {
+    #notification-drawer {
+        width: 100vw;
+        max-width: 100vw;
+    }
+
+    #site-navbar,
+    #site-navbar nav,
+    #mobile-navigation {
+        max-width: 100%;
+    }
+
+    #mobile-navigation a,
+    #mobile-navigation button {
+        min-height: 2.75rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

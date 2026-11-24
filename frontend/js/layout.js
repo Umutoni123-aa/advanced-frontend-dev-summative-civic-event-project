@@ -65,36 +65,51 @@
 
         $("#site-navbar").html(
             '<nav class="bg-blue-900 text-white shadow" aria-label="Main navigation">'
-            + '<div class="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">'
-            + '<a class="flex items-center text-lg font-bold" href="' + base + 'index.html" aria-label="CivicEvents home">'
-            + '<span class="mr-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 text-blue-950" aria-hidden="true">CE</span>CivicEvents</a>'
-            + '<form id="nav-search-form" class="order-last w-full sm:order-none sm:ml-auto sm:w-64" role="search">'
+            + '<div class="mx-auto max-w-7xl px-3 sm:px-4">'
+            + '<div class="flex min-h-16 items-center justify-between gap-2">'
+            + '<a class="flex min-w-0 items-center text-base font-bold sm:text-lg" href="' + base + 'index.html" aria-label="CivicEvents home">'
+            + '<span class="mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-400 text-blue-950" aria-hidden="true">CE</span><span class="truncate">CivicEvents</span></a>'
+            + '<div class="flex shrink-0 items-center gap-1">'
+            + '<button id="notification-button" type="button" class="relative flex h-11 w-11 items-center justify-center rounded hover:bg-blue-800" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false">'
+            + '<span aria-hidden="true">&#128276;</span><span id="notification-count" class="absolute right-0 top-0 hidden min-w-5 rounded-full bg-red-600 px-1 text-xs leading-5 text-white" aria-hidden="true">0</span>'
+            + '</button>'
+            + '<a id="profile-menu-button" href="' + base + (isLoggedIn ? "pages/profile.html" : "pages/login.html") + '" class="flex h-11 w-11 items-center justify-center rounded-full bg-blue-800 text-lg hover:bg-blue-700" aria-label="' + (isLoggedIn ? "Profile: " + $("<div>").text(user.full_name || "Account").html() : "Log in or account") + '">'
+            + '<span aria-hidden="true">&#128100;</span></a>'
+            + '<button id="mobile-menu-toggle" type="button" class="flex h-11 w-11 items-center justify-center rounded hover:bg-blue-800 md:hidden" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation">'
+            + '<span id="mobile-menu-icon" aria-hidden="true" class="text-2xl leading-none">&#9776;</span></button>'
+            + '</div></div>'
+            + '<div id="mobile-navigation" class="hidden border-t border-blue-800 py-3 md:block md:border-0 md:py-0">'
+            + '<div class="flex flex-col gap-1 pb-2 md:flex-row md:flex-wrap md:items-center md:justify-end md:gap-1 md:pb-3">'
+            + '<form id="nav-search-form" class="w-full md:ml-auto md:w-56" role="search">'
             + '<label class="sr-only" for="nav-search">Search civic events</label>'
-            + '<input id="nav-search" name="q" type="search" placeholder="Search events" class="w-full rounded-md px-3 py-2 text-slate-900" />'
-            + '</form>'
-            + '<div class="ml-auto flex items-center gap-1 sm:ml-0">'
-            + '<a href="' + base + 'pages/events.html" class="rounded px-3 py-2 text-sm hover:bg-blue-800">Events</a>'
-            + '<a href="' + base + 'pages/announcements.html" class="hidden rounded px-3 py-2 text-sm hover:bg-blue-800 md:inline">Announcements</a>'
-            + '<a href="' + base + 'pages/promos.html" class="hidden rounded px-3 py-2 text-sm hover:bg-blue-800 md:inline">Promos</a>'
-            + '<button id="dark-mode-toggle" type="button" class="rounded p-2 hover:bg-blue-800" aria-label="' + (darkMode ? "Switch to light mode" : "Switch to dark mode") + '" aria-pressed="' + String(darkMode) + '">'
-            + '<span aria-hidden="true">' + (darkMode ? "&#9728;" : "&#9790;") + '</span>'
-            + '</button>'
-            + '<button id="notification-button" type="button" class="relative rounded p-2 hover:bg-blue-800" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false">'
-            + '<span aria-hidden="true">&#128276;</span><span id="notification-count" class="absolute -right-1 -top-1 hidden rounded-full bg-red-600 px-1.5 text-xs" aria-hidden="true">0</span>'
-            + '</button>'
-            + '<div class="relative">'
-            + '<button id="profile-menu-button" type="button" class="rounded px-3 py-2 hover:bg-blue-800" aria-haspopup="menu" aria-expanded="false">'
-            + (isLoggedIn ? (user.full_name || "Profile") : "Account") + '</button>'
-            + '<div id="profile-menu" class="absolute right-0 z-40 hidden min-w-44 rounded border bg-white text-slate-900 shadow-lg" role="menu">'
-            + adminLinks + accountLinks
-            + '</div></div></div></div></nav>'
+            + '<div class="flex gap-2"><input id="nav-search" name="q" type="search" placeholder="Search events" class="min-w-0 flex-1 rounded-md px-3 py-2 text-slate-900" />'
+            + '<button type="submit" class="min-h-11 rounded-md bg-amber-400 px-4 font-semibold text-blue-950 hover:bg-amber-300">Search</button></div></form>'
+            + '<a href="' + base + 'pages/events.html" class="flex min-h-11 items-center rounded px-3 text-sm hover:bg-blue-800">Events</a>'
+            + '<a href="' + base + 'pages/announcements.html" class="flex min-h-11 items-center rounded px-3 text-sm hover:bg-blue-800">Announcements</a>'
+            + '<a href="' + base + 'pages/promos.html" class="flex min-h-11 items-center rounded px-3 text-sm hover:bg-blue-800">Promos</a>'
+            + '<button id="notification-menu-button" type="button" class="flex min-h-11 items-center gap-2 rounded px-3 text-left text-sm hover:bg-blue-800" aria-haspopup="dialog">'
+            + '<span aria-hidden="true">&#128276;</span>Notifications <span id="mobile-notification-count" class="hidden rounded-full bg-red-600 px-2 py-0.5 text-xs text-white">0</span></button>'
+            + '<button id="dark-mode-toggle" type="button" class="flex min-h-11 items-center gap-2 rounded px-3 text-left text-sm hover:bg-blue-800" aria-label="' + (darkMode ? "Switch to light mode" : "Switch to dark mode") + '" aria-pressed="' + String(darkMode) + '">'
+            + '<span aria-hidden="true">' + (darkMode ? "&#9728;" : "&#9790;") + '</span><span class="theme-toggle-label">' + (darkMode ? "Light mode" : "Dark mode") + '</span></button>'
+            + '<div class="border-t border-blue-800 pt-2 md:hidden">'
+            + '<span class="block px-3 py-2 text-sm font-semibold text-blue-100">' + (isLoggedIn ? $("<div>").text(user.full_name || "Account").html() : "Account") + '</span>'
+            + accountLinks + adminLinks
+            + '</div></div></div></nav>'
         );
 
-        $("#profile-menu-button").on("click", function () {
-            var $menu = $("#profile-menu");
-            var isExpanded = $(this).attr("aria-expanded") === "true";
-            $(this).attr("aria-expanded", String(!isExpanded));
-            $menu.toggleClass("hidden", isExpanded);
+        $("#mobile-menu-toggle").on("click", function () {
+            var expanded = $(this).attr("aria-expanded") === "true";
+            $(this)
+                .attr("aria-expanded", String(!expanded))
+                .attr("aria-label", expanded ? "Open navigation menu" : "Close navigation menu");
+            $("#mobile-menu-icon").html(expanded ? "&#9776;" : "&#10005;");
+            $("#mobile-navigation").toggleClass("hidden", expanded);
+        });
+
+        $(document).on("keydown", function (event) {
+            if (event.key === "Escape" && $("#mobile-menu-toggle").attr("aria-expanded") === "true") {
+                $("#mobile-menu-toggle").trigger("click").trigger("focus");
+            }
         });
 
         $(document).on("click", "#dark-mode-toggle", function () {
@@ -104,8 +119,9 @@
             $(this)
                 .attr("aria-pressed", String(enabled))
                 .attr("aria-label", enabled ? "Switch to light mode" : "Switch to dark mode")
-                .find("span")
+                .find("span").first()
                 .html(enabled ? "&#9728;" : "&#9790;");
+            $(this).find(".theme-toggle-label").text(enabled ? "Light mode" : "Dark mode");
         });
 
         if ($("#back-to-top").length === 0) {
@@ -156,6 +172,7 @@
                     }).length;
                     var $count = $("#notification-count");
                     $count.text(unread).toggleClass("hidden", unread === 0);
+                    $("#mobile-notification-count").text(unread).toggleClass("hidden", unread === 0);
                     $("#notification-button").attr("aria-label", "Notifications, " + unread + " unread");
                 }
             });
@@ -170,9 +187,16 @@
             loadNotifications();
             $("#notification-close").trigger("focus");
         });
+        $(document).on("click", "#notification-menu-button", function () {
+            $("#notification-drawer").removeClass("hidden");
+            $("#notification-button, #notification-menu-button").attr("aria-expanded", "true");
+            loadNotifications();
+            $("#notification-close").trigger("focus");
+        });
         $(document).on("click", "#notification-close", function () {
             $("#notification-drawer").addClass("hidden");
-            $("#notification-button").attr("aria-expanded", "false").trigger("focus");
+            $("#notification-button, #notification-menu-button").attr("aria-expanded", "false");
+            $("#notification-button").trigger("focus");
         });
         $(document).on("click", "#notification-create-toggle", function () {
             $("#notification-create-form").toggleClass("hidden");
@@ -214,6 +238,7 @@
                         return !notification.read && locallyRead.indexOf(notification.id) === -1;
                     }).length;
                     $("#notification-count").text(unread).toggleClass("hidden", unread === 0);
+                    $("#mobile-notification-count").text(unread).toggleClass("hidden", unread === 0);
                     $("#notification-status").text(notifications.length + " notifications.");
                 },
                 error: function () {
@@ -240,6 +265,7 @@
             var unread = $("#notification-count").text();
             var nextUnread = Math.max(0, Number(unread || 0) - 1);
             $("#notification-count").text(nextUnread).toggleClass("hidden", nextUnread === 0);
+            $("#mobile-notification-count").text(nextUnread).toggleClass("hidden", nextUnread === 0);
             if ($(this).is("a")) window.location.href = $(this).attr("href");
         });
 
