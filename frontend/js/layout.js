@@ -43,6 +43,11 @@
         var user = window.Auth && window.Auth.getUser();
         var isAdmin = user && user.role === "admin";
         var isLoggedIn = Boolean(user && window.Auth.getToken());
+        var darkMode = localStorage.getItem("civicEventsDarkMode") === "true";
+
+        if (darkMode) {
+            $("body").addClass("civic-dark");
+        }
 
         // Admin links are rendered only for a confirmed admin session.
         var adminLinks = isAdmin
@@ -71,6 +76,9 @@
             + '<a href="' + base + 'pages/events.html" class="rounded px-3 py-2 text-sm hover:bg-blue-800">Events</a>'
             + '<a href="' + base + 'pages/announcements.html" class="hidden rounded px-3 py-2 text-sm hover:bg-blue-800 md:inline">Announcements</a>'
             + '<a href="' + base + 'pages/promos.html" class="hidden rounded px-3 py-2 text-sm hover:bg-blue-800 md:inline">Promos</a>'
+            + '<button id="dark-mode-toggle" type="button" class="rounded p-2 hover:bg-blue-800" aria-label="' + (darkMode ? "Switch to light mode" : "Switch to dark mode") + '" aria-pressed="' + String(darkMode) + '">'
+            + '<span aria-hidden="true">' + (darkMode ? "&#9728;" : "&#9790;") + '</span>'
+            + '</button>'
             + '<button id="notification-button" type="button" class="relative rounded p-2 hover:bg-blue-800" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false">'
             + '<span aria-hidden="true">&#128276;</span><span id="notification-count" class="absolute -right-1 -top-1 hidden rounded-full bg-red-600 px-1.5 text-xs" aria-hidden="true">0</span>'
             + '</button>'
@@ -87,6 +95,29 @@
             var isExpanded = $(this).attr("aria-expanded") === "true";
             $(this).attr("aria-expanded", String(!isExpanded));
             $menu.toggleClass("hidden", isExpanded);
+        });
+
+        $(document).on("click", "#dark-mode-toggle", function () {
+            var enabled = !$("body").hasClass("civic-dark");
+            $("body").toggleClass("civic-dark", enabled);
+            localStorage.setItem("civicEventsDarkMode", String(enabled));
+            $(this)
+                .attr("aria-pressed", String(enabled))
+                .attr("aria-label", enabled ? "Switch to light mode" : "Switch to dark mode")
+                .find("span")
+                .html(enabled ? "&#9728;" : "&#9790;");
+        });
+
+        if ($("#back-to-top").length === 0) {
+            $("body").append(
+                '<button id="back-to-top" type="button" class="fixed bottom-4 left-4 z-40 hidden rounded-full bg-blue-900 px-4 py-3 text-sm font-bold text-white shadow-lg" aria-label="Back to top">Top</button>'
+            );
+        }
+        $(window).on("scroll", function () {
+            $("#back-to-top").toggleClass("hidden", $(window).scrollTop() < 300);
+        });
+        $(document).on("click", "#back-to-top", function () {
+            window.scrollTo({ top: 0, behavior: "smooth" });
         });
 
         $(document).on("click", "#logout-button", function () {

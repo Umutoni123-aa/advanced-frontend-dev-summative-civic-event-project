@@ -19,3 +19,96 @@ main {
     outline: 3px solid #fbbf24;
     outline-offset: 2px;
 }
+
+/* Shared micro-interactions and reduced-motion support. */
+a,
+button,
+input,
+select,
+textarea,
+article,
+[role="progressbar"] {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: ease-in-out;
+}
+
+button:not(:disabled):hover,
+a:hover {
+    filter: brightness(0.98);
+}
+
+button:not(:disabled):active,
+a:active {
+    transform: translateY(1px);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+    cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+/* Dark mode keeps the existing Tailwind page structure while increasing
+   contrast for surfaces and text. The toggle stores its choice in localStorage. */
+body.civic-dark {
+    background-color: #0f172a;
+    color: #e2e8f0;
+}
+
+body.civic-dark .bg-white,
+body.civic-dark .bg-slate-50,
+body.civic-dark .bg-slate-100,
+body.civic-dark .bg-slate-200 {
+    background-color: #1e293b;
+}
+
+body.civic-dark .text-slate-900,
+body.civic-dark .text-slate-700,
+body.civic-dark .text-slate-600,
+body.civic-dark .text-slate-500 {
+    color: #e2e8f0;
+}
+
+body.civic-dark .border,
+body.civic-dark .border-slate-200,
+body.civic-dark .border-slate-300 {
+    border-color: #475569;
+}
+
+body.civic-dark input,
+body.civic-dark select,
+body.civic-dark textarea {
+    background-color: #334155;
+    color: #f8fafc;
+    border-color: #64748b;
+}
+
+body.civic-dark input::placeholder,
+body.civic-dark textarea::placeholder {
+    color: #cbd5e1;
+}
+
+body.civic-dark .bg-blue-50,
+body.civic-dark .bg-green-100,
+body.civic-dark .bg-red-100,
+body.civic-dark .bg-amber-50,
+body.civic-dark .bg-amber-100 {
+    color: #0f172a;
+}
+
+html {
+    scroll-behavior: smooth;
+}
