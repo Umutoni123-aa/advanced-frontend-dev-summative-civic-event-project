@@ -45,6 +45,7 @@
     <script src="../js/layout.js"></script>
     <script>
         // Admin guard: ordinary users are sent to Events and hidden here immediately.
+        // Role-based guard: only administrators may load dashboard metrics and admin navigation.
         if (!window.Auth.requireAdmin()) {
             document.body.setAttribute("hidden", "hidden");
         }

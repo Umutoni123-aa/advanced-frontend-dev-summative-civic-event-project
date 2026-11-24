@@ -20,6 +20,7 @@
     <script>
         $(function () {
             if (!Auth.requireLogin()) return;
+            // Role-based guard: admins can see unpublished promos and manage their content.
             var user = Auth.getUser();
             var isAdmin = user && user.role === "admin";
             if (isAdmin) $("#promo-admin-actions").removeClass("hidden");

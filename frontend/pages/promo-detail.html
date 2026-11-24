@@ -30,6 +30,7 @@
                 url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "GET",
                 success: function (response) {
                     var item = response.data || {};
+                    // Role-based guard: only admins may open unpublished promos.
                     var user = Auth.getUser();
                     if (item.published === false && (!user || user.role !== "admin")) { $("#promo-loading").hide(); $("#promo-error").text("This promo is not published.").removeClass("hidden"); return; }
                     $("#promo-title").text(item.title || "Untitled promo");

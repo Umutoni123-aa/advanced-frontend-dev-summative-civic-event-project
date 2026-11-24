@@ -29,6 +29,7 @@
     <script>
         $(function () {
             if (!Auth.requireLogin()) return;
+            // Role-based guard: admins can see unpublished items and edit/delete controls.
             var user = Auth.getUser();
             var isAdmin = user && user.role === "admin";
             if (isAdmin) $("#announcement-admin-actions").removeClass("hidden");

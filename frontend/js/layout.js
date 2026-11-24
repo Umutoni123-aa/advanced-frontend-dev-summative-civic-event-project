@@ -86,8 +86,21 @@
             + '<button id="notification-button" type="button" class="relative flex h-11 w-11 items-center justify-center rounded hover:bg-blue-800" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false">'
             + '<span aria-hidden="true">&#128276;</span><span id="notification-count" class="absolute right-0 top-0 hidden min-w-5 rounded-full bg-red-600 px-1 text-xs leading-5 text-white" aria-hidden="true">0</span>'
             + '</button>'
-            + '<a id="profile-menu-button" href="' + base + (isLoggedIn ? "pages/profile.html" : "pages/login.html") + '" class="flex h-11 w-11 items-center justify-center rounded-full bg-blue-800 text-lg hover:bg-blue-700" aria-label="' + (isLoggedIn ? "Profile: " + $("<div>").text(user.full_name || "Account").html() : "Log in or account") + '">'
-            + '<span aria-hidden="true">&#128100;</span></a>'
+            + '<div class="relative">'
+            + '<button id="profile-menu-button" type="button" class="flex h-11 w-11 items-center justify-center rounded-full bg-blue-800 text-lg hover:bg-blue-700" aria-label="' + (isLoggedIn ? "Profile menu for " + $("<div>").text(user.full_name || "Account").html() : "Account menu") + '" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu">'
+            + '<span aria-hidden="true">&#128100;</span></button>'
+            + '<div id="profile-menu" class="absolute right-0 top-full z-[70] mt-2 hidden w-52 rounded-lg border border-slate-200 bg-white py-1 text-slate-900 shadow-xl" role="menu">'
+            + (isLoggedIn
+                ? '<a href="' + base + 'pages/profile.html" role="menuitem" class="block min-h-11 px-4 py-2 text-sm hover:bg-slate-100">Profile</a>'
+                : '<a href="' + base + 'pages/login.html" role="menuitem" class="block min-h-11 px-4 py-2 text-sm hover:bg-slate-100">Log in</a>')
+            + (isAdmin
+                ? '<a href="' + base + 'pages/users.html" role="menuitem" class="block min-h-11 px-4 py-2 text-sm hover:bg-slate-100">Admin</a>'
+                  + '<a href="' + base + 'pages/dashboard.html" role="menuitem" class="block min-h-11 px-4 py-2 text-sm hover:bg-slate-100">Dashboard</a>'
+                : "")
+            + (isLoggedIn
+                ? '<button type="button" id="profile-menu-logout" role="menuitem" class="min-h-11 w-full px-4 py-2 text-left text-sm hover:bg-slate-100">Log out</button>'
+                : '<a href="' + base + 'pages/signup.html" role="menuitem" class="block min-h-11 px-4 py-2 text-sm hover:bg-slate-100">Sign up</a>')
+            + '</div></div>'
             + '<button id="mobile-menu-toggle" type="button" class="flex h-11 w-11 items-center justify-center rounded hover:bg-blue-800 md:hidden" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation">'
             + '<span id="mobile-menu-icon" aria-hidden="true" class="text-2xl leading-none">&#9776;</span></button>'
             + '</div></div></nav>'
@@ -105,6 +118,22 @@
         $(document).on("keydown", function (event) {
             if (event.key === "Escape" && $("#mobile-menu-toggle").attr("aria-expanded") === "true") {
                 $("#mobile-menu-toggle").trigger("click").trigger("focus");
+            }
+            if (event.key === "Escape" && !$("#profile-menu").hasClass("hidden")) {
+                $("#profile-menu").addClass("hidden");
+                $("#profile-menu-button").attr("aria-expanded", "false").trigger("focus");
+            }
+        });
+
+        $(document).on("click", "#profile-menu-button", function () {
+            var expanded = $(this).attr("aria-expanded") === "true";
+            $(this).attr("aria-expanded", String(!expanded));
+            $("#profile-menu").toggleClass("hidden", expanded);
+        });
+        $(document).on("click", function (event) {
+            if (!$(event.target).closest("#profile-menu, #profile-menu-button").length) {
+                $("#profile-menu").addClass("hidden");
+                $("#profile-menu-button").attr("aria-expanded", "false");
             }
         });
 
@@ -131,6 +160,10 @@
         });
 
         $(document).on("click", "#logout-button", function () {
+            window.Auth.clearSession();
+            window.location.replace(base + "pages/login.html");
+        });
+        $(document).on("click", "#profile-menu-logout", function () {
             window.Auth.clearSession();
             window.location.replace(base + "pages/login.html");
         });
@@ -171,6 +204,7 @@
                 }
             });
 
+            // Role-based guard: only admins see notification management controls.
             if (isAdmin) $("#notification-admin-create").removeClass("hidden");
         }
 

@@ -21,7 +21,9 @@
                 <div class="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
                     <p><strong>Starts:</strong> <time id="event-starts"></time></p>
                     <p><strong>Ends:</strong> <time id="event-ends"></time></p>
-                    <p><strong>Location:</strong> <span id="event-location"></span></p>
+                    <p><strong>Location:</strong> <span id="event-location"></span>
+                        <a id="event-map-link" class="ml-2 hidden font-semibold text-blue-800 underline" target="_blank" rel="noopener noreferrer">View on map<span class="sr-only"> (opens in a new tab)</span></a>
+                    </p>
                 </div>
                 <p id="event-description" class="mt-6 whitespace-pre-line text-slate-700"></p>
                 <button id="registration-button" type="button" class="mt-6 hidden rounded-md bg-blue-800 px-5 py-3 font-semibold text-white hover:bg-blue-900 disabled:opacity-60"></button>
@@ -34,7 +36,7 @@
 
                 <section class="mt-10 border-t pt-8" aria-labelledby="feedback-heading">
                     <h2 id="feedback-heading" class="text-xl font-bold">Event feedback</h2>
-                    <p class="mt-2 text-sm">Average rating: <strong id="average-rating">No ratings yet</strong></p>
+                    <p class="mt-2 text-sm"><span id="feedback-summary-label">Average rating:</span> <strong id="average-rating">No ratings yet</strong></p>
                     <ul id="feedback-list" class="mt-4 space-y-3"></ul>
 
                     <form id="feedback-form" class="mt-6 max-w-xl space-y-4" novalidate>
@@ -73,11 +75,13 @@
         $(function () {
             var eventId = new URLSearchParams(window.location.search).get("id");
             var user = Auth.getUser();
+            // Role-based guard: attendee details and the full feedback list are admin-only API views.
             var isAdmin = user && user.role === "admin";
             var existingFeedback = null;
             var registered = false;
 
             if (!Auth.requireLogin()) return;
+            if (!isAdmin) $("#feedback-summary-label").text("Your rating:");
             if (!eventId) {
                 $("#detail-loading").hide();
                 $("#detail-error").text("No event was specified.").removeClass("hidden");
@@ -127,7 +131,7 @@
                 $("#feedback-list").empty();
                 if (!feedback.length) {
                     $("#feedback-list").html('<li class="rounded-lg border border-dashed p-4 text-sm text-slate-600">No feedback has been submitted yet.</li>');
-                    $("#average-rating").text("No ratings yet");
+                    $("#average-rating").text(isAdmin ? "No ratings yet" : "Not rated yet");
                     return;
                 }
 
@@ -209,6 +213,12 @@
                     $("#event-starts").text(formatDate(event.starts_at)).attr("datetime", event.starts_at || "");
                     $("#event-ends").text(formatDate(event.ends_at)).attr("datetime", event.ends_at || "");
                     $("#event-location").text(event.location || "Location to be announced");
+                    if (event.location) {
+                        $("#event-map-link")
+                            .attr("href", "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(event.location))
+                            .attr("aria-label", "View " + event.location + " on a map (opens in a new tab)")
+                            .removeClass("hidden");
+                    }
                     $("#event-description").text(event.description || "No description available.");
                     document.title = (event.title || "Event") + " | CivicEvents";
 
