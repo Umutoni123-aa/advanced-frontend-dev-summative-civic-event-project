@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Event details | CivicEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+        <a href="events.html" class="text-sm font-semibold text-blue-800 underline">Back to events</a>
+
+        <div id="detail-loading" class="mt-5 h-96 animate-pulse rounded-xl bg-slate-200" aria-label="Loading event details"></div>
+        <article id="event-detail" class="mt-5 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <img id="event-image" class="hidden h-64 w-full object-cover sm:h-96" alt="">
+            <div id="event-placeholder" class="flex h-64 items-center justify-center bg-slate-200 text-slate-500 sm:h-96">No event image</div>
+            <div class="p-5 sm:p-8">
+                <h1 id="event-title" class="text-3xl font-bold"></h1>
+                <div class="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+                    <p><strong>Starts:</strong> <time id="event-starts"></time></p>
+                    <p><strong>Ends:</strong> <time id="event-ends"></time></p>
+                    <p><strong>Location:</strong> <span id="event-location"></span></p>
+                </div>
+                <p id="event-description" class="mt-6 whitespace-pre-line text-slate-700"></p>
+                <button id="registration-button" type="button" class="mt-6 hidden rounded-md bg-blue-800 px-5 py-3 font-semibold text-white hover:bg-blue-900 disabled:opacity-60"></button>
+
+                <section id="registrants-section" class="mt-10 hidden" aria-labelledby="registrants-heading">
+                    <h2 id="registrants-heading" class="text-xl font-bold">Registered attendees</h2>
+                    <p id="registrants-status" class="mt-2 text-sm text-slate-600" aria-live="polite"></p>
+                    <ul id="registrants-list" class="mt-3 divide-y rounded-lg border bg-slate-50"></ul>
+                </section>
+
+                <section class="mt-10 border-t pt-8" aria-labelledby="feedback-heading">
+                    <h2 id="feedback-heading" class="text-xl font-bold">Event feedback</h2>
+                    <p class="mt-2 text-sm">Average rating: <strong id="average-rating">No ratings yet</strong></p>
+                    <ul id="feedback-list" class="mt-4 space-y-3"></ul>
+
+                    <form id="feedback-form" class="mt-6 max-w-xl space-y-4" novalidate>
+                        <div>
+                            <label for="rating" class="block text-sm font-semibold">Rating</label>
+                            <select id="rating" name="rating" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                                <option value="">Choose a rating</option>
+                                <option value="1">1 - Poor</option>
+                                <option value="2">2 - Fair</option>
+                                <option value="3">3 - Good</option>
+                                <option value="4">4 - Very good</option>
+                                <option value="5">5 - Excellent</option>
+                            </select>
+                            <p id="rating-error" class="mt-1 text-sm text-red-700" aria-live="polite"></p>
+                        </div>
+                        <div>
+                            <label for="comment" class="block text-sm font-semibold">Comment</label>
+                            <textarea id="comment" name="comment" rows="4" maxlength="1000" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea>
+                        </div>
+                        <p id="feedback-status" class="text-sm" role="alert" aria-live="assertive"></p>
+                        <button id="feedback-submit" type="submit" class="rounded-md bg-blue-800 px-5 py-3 font-semibold text-white hover:bg-blue-900 disabled:opacity-60">Submit feedback</button>
+                    </form>
+                </section>
+            </div>
+        </article>
+        <p id="detail-error" class="mt-5 hidden rounded-lg border border-red-200 bg-red-50 p-4 text-red-800" role="alert"></p>
+    </main>
+    <footer id="site-footer"></footer>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            var eventId = new URLSearchParams(window.location.search).get("id");
+            var user = Auth.getUser();
+            var isAdmin = user && user.role === "admin";
+            var existingFeedback = null;
+            var registered = false;
+
+            if (!Auth.requireLogin()) return;
+            if (!eventId) {
+                $("#detail-loading").hide();
+                $("#detail-error").text("No event was specified.").removeClass("hidden");
+                return;
+            }
+
+            function formatDate(value) {
+                if (!value) return "To be announced";
+                var date = new Date(value);
+                return Number.isNaN(date.getTime()) ? "Unavailable" : date.toLocaleString([], {
+                    dateStyle: "long",
+                    timeStyle: "short"
+                });
+            }
+
+            function escapeHtml(value) {
+                return $("<div>").text(value == null ? "" : value).html();
+            }
+
+            function setRegistrationButton() {
+                var $button = $("#registration-button");
+                if (isAdmin) {
+                    $button.addClass("hidden");
+                    return;
+                }
+                $button
+                    .text(registered ? "Cancel registration" : "Register")
+                    .removeClass("hidden bg-blue-800 bg-red-700")
+                    .addClass(registered ? "bg-red-700" : "bg-blue-800");
+            }
+
+            function loadRegistrationStatus() {
+                apiRequest({
+                    url: BASE_URL + "/api/event-registrations/my-registrations",
+                    method: "GET",
+                    success: function (response) {
+                        var registrations = Array.isArray(response.data) ? response.data : [];
+                        registered = registrations.some(function (registration) {
+                            return registration.event_id === eventId && registration.status !== "cancelled";
+                        });
+                        setRegistrationButton();
+                    }
+                });
+            }
+
+            function renderFeedback(feedback) {
+                $("#feedback-list").empty();
+                if (!feedback.length) {
+                    $("#feedback-list").html('<li class="rounded-lg border border-dashed p-4 text-sm text-slate-600">No feedback has been submitted yet.</li>');
+                    $("#average-rating").text("No ratings yet");
+                    return;
+                }
+
+                var total = 0;
+                feedback.forEach(function (item) {
+                    total += Number(item.rating);
+                    $("#feedback-list").append(
+                        '<li class="rounded-lg border p-4">' +
+                        '<p class="font-semibold">' + escapeHtml(item.full_name || "CivicEvents user") + ' - ' + escapeHtml(item.rating) + '/5</p>' +
+                        '<p class="mt-1 text-sm text-slate-700">' + escapeHtml(item.comment || "No comment") + '</p>' +
+                        '</li>'
+                    );
+                });
+                $("#average-rating").text((total / feedback.length).toFixed(1) + " out of 5");
+            }
+
+            function loadFeedback() {
+                if (isAdmin) {
+                    apiRequest({
+                        url: BASE_URL + "/api/event-feedback/event/" + encodeURIComponent(eventId),
+                        method: "GET",
+                        success: function (response) {
+                            var feedback = Array.isArray(response.data) ? response.data : [];
+                            renderFeedback(feedback);
+                        }
+                    });
+                } else {
+                    apiRequest({
+                        url: BASE_URL + "/api/event-feedback/my-feedback",
+                        method: "GET",
+                        success: function (response) {
+                            var allFeedback = Array.isArray(response.data) ? response.data : [];
+                            var ownFeedback = allFeedback.filter(function (item) { return item.event_id === eventId; });
+                            existingFeedback = ownFeedback[0] || null;
+                            renderFeedback(ownFeedback);
+
+                            if (existingFeedback) {
+                                $("#rating").val(String(existingFeedback.rating));
+                                $("#comment").val(existingFeedback.comment || "");
+                                $("#feedback-submit").text("Update feedback");
+                            }
+                        }
+                    });
+                }
+            }
+
+            function loadAttendees() {
+                if (!isAdmin) return;
+                $("#registrants-section").removeClass("hidden");
+                apiRequest({
+                    url: BASE_URL + "/api/event-registrations/event/" + encodeURIComponent(eventId) + "/attendees",
+                    method: "GET",
+                    success: function (response) {
+                        var attendees = Array.isArray(response.data) ? response.data : [];
+                        $("#registrants-status").text(attendees.length + " registered attendee" + (attendees.length === 1 ? "" : "s") + ".");
+                        $("#registrants-list").empty();
+                        if (!attendees.length) {
+                            $("#registrants-list").html('<li class="p-4 text-sm text-slate-600">No attendees yet.</li>');
+                        } else {
+                            attendees.forEach(function (attendee) {
+                                $("#registrants-list").append(
+                                    '<li class="p-4"><strong>' + escapeHtml(attendee.full_name || "CivicEvents user") +
+                                    '</strong><span class="ml-2 text-sm text-slate-600">' + escapeHtml(attendee.email || "") + '</span></li>'
+                                );
+                            });
+                        }
+                    }
+                });
+            }
+
+            apiRequest({
+                url: BASE_URL + "/api/events/" + encodeURIComponent(eventId),
+                method: "GET",
+                success: function (response) {
+                    var event = response.data || {};
+                    var metadata = event.metadata || {};
+
+                    $("#event-title").text(event.title || "Untitled event");
+                    $("#event-starts").text(formatDate(event.starts_at)).attr("datetime", event.starts_at || "");
+                    $("#event-ends").text(formatDate(event.ends_at)).attr("datetime", event.ends_at || "");
+                    $("#event-location").text(event.location || "Location to be announced");
+                    $("#event-description").text(event.description || "No description available.");
+                    document.title = (event.title || "Event") + " | CivicEvents";
+
+                    if (metadata.image_url) {
+                        $("#event-image").attr("src", metadata.image_url).attr("alt", event.title || "Event image").removeClass("hidden");
+                        $("#event-placeholder").addClass("hidden");
+                    }
+
+                    $("#detail-loading").hide();
+                    $("#event-detail").removeClass("hidden");
+                    loadRegistrationStatus();
+                    loadAttendees();
+                    loadFeedback();
+                },
+                error: function (xhr) {
+                    $("#detail-loading").hide();
+                    $("#detail-error").text((xhr.responseJSON && xhr.responseJSON.message) || "Event could not be loaded.").removeClass("hidden");
+                }
+            });
+
+            $("#registration-button").on("click", function () {
+                var $button = $(this);
+                $button.prop("disabled", true);
+                apiRequest({
+                    url: BASE_URL + "/api/event-registrations/" + (registered ? "cancel" : "register"),
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ event_id: eventId }),
+                    success: function (response) {
+                        registered = !registered;
+                        setRegistrationButton();
+                        showToast(response.message || (registered ? "Registered successfully." : "Registration cancelled."), "success");
+                    },
+                    error: function (xhr) {
+                        showToast((xhr.responseJSON && xhr.responseJSON.message) || "Registration action failed.", "error");
+                    },
+                    complete: function () {
+                        $button.prop("disabled", false);
+                    }
+                });
+            });
+
+            $("#feedback-form").on("submit", function (event) {
+                event.preventDefault();
+                var rating = Number($("#rating").val());
+                $("#rating-error").text("");
+
+                if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+                    $("#rating-error").text("Choose a rating from 1 to 5.");
+                    $("#rating").trigger("focus");
+                    return;
+                }
+
+                var $submit = $("#feedback-submit");
+                $submit.prop("disabled", true).text(existingFeedback ? "Updating..." : "Submitting...");
+
+                var options = {
+                    method: existingFeedback ? "PUT" : "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(existingFeedback
+                        ? { rating: rating, comment: $("#comment").val() }
+                        : { event_id: eventId, rating: rating, comment: $("#comment").val() }),
+                    success: function (response) {
+                        showToast(response.message || "Feedback saved.", "success");
+                        if (!existingFeedback) {
+                            existingFeedback = response.data;
+                            $("#feedback-submit").text("Update feedback");
+                        }
+                        loadFeedback();
+                    },
+                    error: function (xhr) {
+                        $("#feedback-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to save feedback.");
+                    },
+                    complete: function () {
+                        $submit.prop("disabled", false);
+                        if (existingFeedback) $submit.text("Update feedback");
+                    }
+                };
+
+                options.url = existingFeedback
+                    ? BASE_URL + "/api/event-feedback/" + encodeURIComponent(existingFeedback.id)
+                    : BASE_URL + "/api/event-feedback";
+                apiRequest(options);
+            });
+        });
+    </script>
+</body>
+</html>

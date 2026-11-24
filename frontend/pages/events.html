@@ -10,13 +10,42 @@
 <body class="bg-slate-50 text-slate-900">
     <header id="site-navbar"></header>
     <main class="mx-auto max-w-7xl px-4 py-10">
-        <h1 class="text-3xl font-bold">City events</h1>
-        <section id="announcements" class="mt-8" aria-labelledby="announcements-heading">
-            <h2 id="announcements-heading" class="text-xl font-semibold">Announcements</h2>
-        </section>
-        <section id="promos" class="mt-8" aria-labelledby="promos-heading">
-            <h2 id="promos-heading" class="text-xl font-semibold">Promos</h2>
-        </section>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-semibold text-blue-800">CivicEvents</p>
+                <h1 class="text-3xl font-bold">City events</h1>
+            </div>
+            <a href="my-registrations.html" class="rounded-md border border-blue-800 px-4 py-2 text-center text-sm font-semibold text-blue-800 hover:bg-blue-50">My registrations</a>
+        </div>
+
+        <form id="event-filters" class="mt-6 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]" role="search">
+            <div>
+                <label for="event-search" class="block text-sm font-semibold">Search</label>
+                <input id="event-search" type="search" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" placeholder="Title or description">
+            </div>
+            <div>
+                <label for="date-filter" class="block text-sm font-semibold">Date</label>
+                <input id="date-filter" type="date" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+            </div>
+            <div>
+                <label for="location-filter" class="block text-sm font-semibold">Location</label>
+                <input id="location-filter" type="text" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2" placeholder="Location">
+            </div>
+            <button type="button" id="clear-filters" class="self-end rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Clear</button>
+        </form>
+
+        <p id="events-status" class="sr-only" aria-live="polite"></p>
+        <div id="events-skeleton" class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading events">
+            <div class="h-72 animate-pulse rounded-xl bg-slate-200"></div>
+            <div class="h-72 animate-pulse rounded-xl bg-slate-200"></div>
+            <div class="h-72 animate-pulse rounded-xl bg-slate-200"></div>
+        </div>
+        <div id="events-grid" class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"></div>
+        <div id="events-empty" class="mt-10 hidden rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+            <h2 class="text-lg font-bold">No events found</h2>
+            <p class="mt-2 text-sm text-slate-600">Try changing or clearing the filters.</p>
+        </div>
+        <nav id="events-pagination" class="mt-8 flex items-center justify-center gap-3" aria-label="Events pagination"></nav>
     </main>
     <footer id="site-footer"></footer>
 
@@ -25,5 +54,213 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            var currentPage = 1;
+            var pageSize = 9;
+            var allEvents = [];
+
+            // Published events are public to normal users; the admin guard only
+            // controls extra Edit/Delete controls, not event visibility itself.
+            function formatDate(value) {
+                if (!value) return "Date to be announced";
+                var date = new Date(value);
+                return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString([], {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                });
+            }
+
+            function escapeHtml(value) {
+                return $("<div>").text(value == null ? "" : value).html();
+            }
+
+            function isPublished(event) {
+                return event.published !== false;
+            }
+
+            function getFilteredEvents() {
+                var query = $.trim($("#event-search").val()).toLowerCase();
+                var date = $("#date-filter").val();
+                var location = $.trim($("#location-filter").val()).toLowerCase();
+                var user = Auth.getUser();
+
+                return allEvents.filter(function (event) {
+                    if (!user || user.role !== "admin") {
+                        if (!isPublished(event)) return false;
+                    }
+
+                    var searchable = ((event.title || "") + " " + (event.description || "")).toLowerCase();
+                    if (query && searchable.indexOf(query) === -1) return false;
+
+                    if (location && ((event.location || "").toLowerCase().indexOf(location) === -1)) return false;
+
+                    if (date && event.starts_at) {
+                        var eventDate = new Date(event.starts_at);
+                        var isoDate = !Number.isNaN(eventDate.getTime())
+                            ? eventDate.getFullYear() + "-" +
+                              String(eventDate.getMonth() + 1).padStart(2, "0") + "-" +
+                              String(eventDate.getDate()).padStart(2, "0")
+                            : "";
+                        if (isoDate !== date) return false;
+                    } else if (date) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            function registerEvent(eventId) {
+                if (!Auth.requireLogin()) return;
+
+                apiRequest({
+                    url: BASE_URL + "/api/event-registrations/register",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ event_id: eventId }),
+                    success: function () {
+                        showToast("You are registered for this event.", "success");
+                    },
+                    error: function (xhr) {
+                        var message = xhr.responseJSON && xhr.responseJSON.message;
+                        showToast(message || "Unable to register.", "error");
+                    }
+                });
+            }
+
+            function deleteEvent(eventId) {
+                if (!window.confirm("Delete this event?")) return;
+
+                apiRequest({
+                    url: BASE_URL + "/api/events/" + encodeURIComponent(eventId),
+                    method: "DELETE",
+                    success: function () {
+                        showToast("Event deleted.", "success");
+                        allEvents = allEvents.filter(function (event) { return event.id !== eventId; });
+                        renderEvents();
+                    },
+                    error: function (xhr) {
+                        showToast((xhr.responseJSON && xhr.responseJSON.message) || "Unable to delete event.", "error");
+                    }
+                });
+            }
+
+            function renderEvents() {
+                var filtered = getFilteredEvents();
+                var totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+                if (currentPage > totalPages) currentPage = totalPages;
+
+                var start = (currentPage - 1) * pageSize;
+                var visible = filtered.slice(start, start + pageSize);
+                var user = Auth.getUser();
+                var isAdmin = user && user.role === "admin";
+                var cards = "";
+
+                $("#events-skeleton").hide();
+                $("#events-status").text(filtered.length + " events found.");
+                $("#events-empty").toggleClass("hidden", filtered.length !== 0);
+
+                visible.forEach(function (event) {
+                    var metadata = event.metadata || {};
+                    var imageUrl = metadata.image_url
+                        ? '<img src="' + escapeHtml(metadata.image_url) + '" alt="" class="h-44 w-full object-cover">'
+                        : '<div class="flex h-44 items-center justify-center bg-slate-200 text-slate-500" aria-hidden="true">No image</div>';
+
+                    var description = $.trim(event.description || "");
+                    if (description.length > 140) description = description.substring(0, 137) + "...";
+
+                    var actions =
+                        '<a href="event-detail.html?id=' + encodeURIComponent(event.id) + '" class="rounded-md bg-blue-800 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-900">View</a>';
+
+                    if (isAdmin) {
+                        // Role guard: event management actions only appear for admins.
+                        actions += '<button type="button" data-action="delete-event" data-event-id="' + escapeHtml(event.id) +
+                            '" class="rounded-md border border-red-600 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Delete</button>';
+                        actions += '<a href="event-edit.html?id=' + encodeURIComponent(event.id) +
+                            '" class="rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">Edit</a>';
+                    } else {
+                        actions += '<button type="button" data-action="register-event" data-event-id="' + escapeHtml(event.id) +
+                            '" class="rounded-md border border-blue-800 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Register</button>';
+                    }
+
+                    cards +=
+                        '<article class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">' +
+                        imageUrl +
+                        '<div class="p-5">' +
+                        '<h2 class="text-xl font-bold">' + escapeHtml(event.title) + '</h2>' +
+                        '<p class="mt-2 text-sm text-slate-600"><time datetime="' + escapeHtml(event.starts_at || "") + '">' + escapeHtml(formatDate(event.starts_at)) + '</time></p>' +
+                        '<p class="mt-1 text-sm text-slate-600">' + escapeHtml(event.location || "Location to be announced") + '</p>' +
+                        '<p class="mt-3 text-sm text-slate-700">' + escapeHtml(description || "No description available.") + '</p>' +
+                        (!isPublished(event) ? '<p class="mt-3 text-xs font-bold uppercase text-amber-700">Unpublished</p>' : '') +
+                        '<div class="mt-5 flex flex-wrap gap-2">' + actions + '</div>' +
+                        '</div></article>';
+                });
+
+                $("#events-grid").html(cards);
+
+                var pagination = "";
+                if (filtered.length > pageSize) {
+                    pagination =
+                        '<button type="button" id="previous-page" class="rounded border px-3 py-2 text-sm disabled:opacity-40"' +
+                        (currentPage === 1 ? " disabled" : "") + '>Previous</button>' +
+                        '<span class="text-sm" aria-live="polite">Page ' + currentPage + ' of ' + totalPages + '</span>' +
+                        '<button type="button" id="next-page" class="rounded border px-3 py-2 text-sm disabled:opacity-40"' +
+                        (currentPage === totalPages ? " disabled" : "") + '>Next</button>';
+                }
+                $("#events-pagination").html(pagination);
+            }
+
+            function loadEvents() {
+                $("#events-skeleton").show();
+                $("#events-grid").empty();
+
+                apiRequest({
+                    url: BASE_URL + "/api/events",
+                    method: "GET",
+                    success: function (response) {
+                        allEvents = Array.isArray(response.data) ? response.data : [];
+                        renderEvents();
+                    },
+                    error: function () {
+                        $("#events-skeleton").hide();
+                        $("#events-empty").removeClass("hidden");
+                        $("#events-empty h2").text("Events could not be loaded");
+                        $("#events-status").text("Events could not be loaded.");
+                    }
+                });
+            }
+
+            $("#event-filters").on("input", "input", function () {
+                currentPage = 1;
+                renderEvents();
+            });
+
+            $("#clear-filters").on("click", function () {
+                $("#event-search, #location-filter, #date-filter").val("");
+                currentPage = 1;
+                renderEvents();
+            });
+
+            $(document).on("click", "[data-action='register-event']", function () {
+                registerEvent($(this).attr("data-event-id"));
+            });
+            $(document).on("click", "[data-action='delete-event']", function () {
+                deleteEvent($(this).attr("data-event-id"));
+            });
+            $(document).on("click", "#previous-page", function () {
+                currentPage--;
+                renderEvents();
+            });
+            $(document).on("click", "#next-page", function () {
+                currentPage++;
+                renderEvents();
+            });
+
+            var initialSearch = new URLSearchParams(window.location.search).get("q");
+            if (initialSearch) $("#event-search").val(initialSearch);
+
+            loadEvents();
+        });
+    </script>
 </body>
 </html>

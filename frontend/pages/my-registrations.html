@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My registrations | CivicEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+        <div class="flex items-end justify-between gap-4">
+            <div>
+                <p class="text-sm font-semibold text-blue-800">CivicEvents</p>
+                <h1 class="text-3xl font-bold">My registrations</h1>
+            </div>
+            <a href="events.html" class="text-sm font-semibold text-blue-800 underline">Browse events</a>
+        </div>
+
+        <p id="registrations-status" class="mt-5 text-sm text-slate-600" aria-live="polite">Loading registrations...</p>
+        <div id="registrations-loading" class="mt-5 grid gap-4 sm:grid-cols-2" aria-label="Loading registrations">
+            <div class="h-40 animate-pulse rounded-xl bg-slate-200"></div>
+            <div class="h-40 animate-pulse rounded-xl bg-slate-200"></div>
+        </div>
+        <div id="registrations-list" class="mt-5 grid gap-4 sm:grid-cols-2"></div>
+        <div id="registrations-empty" class="mt-8 hidden rounded-xl border border-dashed p-8 text-center">
+            <h2 class="font-bold">No registrations yet</h2>
+            <p class="mt-2 text-sm text-slate-600">Browse events and register for one to see it here.</p>
+        </div>
+    </main>
+    <footer id="site-footer"></footer>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+
+            function escapeHtml(value) {
+                return $("<div>").text(value == null ? "" : value).html();
+            }
+
+            function formatDate(value) {
+                if (!value) return "Date to be announced";
+                var date = new Date(value);
+                return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString([], {
+                    dateStyle: "medium",
+                    timeStyle: "short"
+                });
+            }
+
+            function cancelRegistration(eventId, $card) {
+                apiRequest({
+                    url: BASE_URL + "/api/event-registrations/cancel",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ event_id: eventId }),
+                    success: function (response) {
+                        showToast(response.message || "Registration cancelled.", "success");
+                        $card.remove();
+                        if (!$("#registrations-list article").length) {
+                            $("#registrations-empty").removeClass("hidden");
+                        }
+                        $("#registrations-status").text("Registration cancelled.");
+                    },
+                    error: function (xhr) {
+                        showToast((xhr.responseJSON && xhr.responseJSON.message) || "Unable to cancel registration.", "error");
+                    }
+                });
+            }
+
+            apiRequest({
+                url: BASE_URL + "/api/event-registrations/my-registrations",
+                method: "GET",
+                success: function (response) {
+                    var registrations = Array.isArray(response.data) ? response.data : [];
+                    registrations = registrations.filter(function (registration) {
+                        return registration.status !== "cancelled";
+                    });
+                    $("#registrations-loading").hide();
+                    $("#registrations-status").text(registrations.length + " active registration" + (registrations.length === 1 ? "" : "s") + ".");
+
+                    if (!registrations.length) {
+                        $("#registrations-empty").removeClass("hidden");
+                        return;
+                    }
+
+                    registrations.forEach(function (registration) {
+                        var $card = $(
+                            '<article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">' +
+                            '<h2 class="text-xl font-bold"></h2>' +
+                            '<p class="mt-2 text-sm text-slate-600"></p>' +
+                            '<p class="mt-1 text-sm text-slate-600"></p>' +
+                            '<div class="mt-5 flex flex-wrap gap-2">' +
+                            '<a class="rounded-md bg-blue-800 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-900">View event</a>' +
+                            '<button type="button" class="rounded-md border border-red-600 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Cancel registration</button>' +
+                            '</div></article>'
+                        );
+                        $card.find("h2").text(registration.title || "Untitled event");
+                        $card.find("p").eq(0).text(formatDate(registration.starts_at));
+                        $card.find("p").eq(1).text(registration.location || "Location to be announced");
+                        $card.find("a").attr("href", "event-detail.html?id=" + encodeURIComponent(registration.event_id));
+                        $card.find("button").on("click", function () {
+                            $(this).prop("disabled", true).text("Cancelling...");
+                            cancelRegistration(registration.event_id, $card);
+                        });
+                        $("#registrations-list").append($card);
+                    });
+                },
+                error: function (xhr) {
+                    $("#registrations-loading").hide();
+                    $("#registrations-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load registrations.");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

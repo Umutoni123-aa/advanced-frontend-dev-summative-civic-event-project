@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit event | CivicEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-2xl px-4 py-8 sm:py-10">
+        <a href="events.html" class="text-sm font-semibold text-blue-800 underline">Back to events</a>
+        <h1 class="mt-4 text-3xl font-bold">Edit event</h1>
+
+        <form id="event-edit-form" class="mt-6 space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:p-8" novalidate>
+            <div>
+                <label for="title" class="block text-sm font-semibold">Title</label>
+                <input id="title" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+            </div>
+            <div>
+                <label for="location" class="block text-sm font-semibold">Location</label>
+                <input id="location" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label for="starts_at" class="block text-sm font-semibold">Starts</label>
+                    <input id="starts_at" type="datetime-local" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                </div>
+                <div>
+                    <label for="ends_at" class="block text-sm font-semibold">Ends</label>
+                    <input id="ends_at" type="datetime-local" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2">
+                </div>
+            </div>
+            <div>
+                <label for="description" class="block text-sm font-semibold">Description</label>
+                <textarea id="description" rows="5" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea>
+            </div>
+            <p id="edit-status" class="text-sm" role="alert" aria-live="assertive"></p>
+            <button id="edit-submit" type="submit" class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white disabled:opacity-60">Save changes</button>
+        </form>
+    </main>
+    <footer id="site-footer"></footer>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            // Role guard: this page is only available to admins.
+            if (!Auth.requireAdmin()) {
+                document.body.setAttribute("hidden", "hidden");
+                return;
+            }
+
+            var eventId = new URLSearchParams(window.location.search).get("id");
+            if (!eventId) {
+                $("#edit-status").text("No event was specified.");
+                return;
+            }
+
+            function toLocalInputValue(value) {
+                if (!value) return "";
+                var date = new Date(value);
+                if (Number.isNaN(date.getTime())) return "";
+                var offset = date.getTimezoneOffset() * 60000;
+                return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+            }
+
+            apiRequest({
+                url: BASE_URL + "/api/events/" + encodeURIComponent(eventId),
+                method: "GET",
+                success: function (response) {
+                    var event = response.data || {};
+                    $("#title").val(event.title || "");
+                    $("#location").val(event.location || "");
+                    $("#starts_at").val(toLocalInputValue(event.starts_at));
+                    $("#ends_at").val(toLocalInputValue(event.ends_at));
+                    $("#description").val(event.description || "");
+                },
+                error: function (xhr) {
+                    $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load event.");
+                }
+            });
+
+            $("#event-edit-form").on("submit", function (event) {
+                event.preventDefault();
+                var title = $.trim($("#title").val());
+                var location = $.trim($("#location").val());
+                var startsAt = $("#starts_at").val();
+                var endsAt = $("#ends_at").val();
+
+                if (!title || !location || !startsAt || !endsAt) {
+                    $("#edit-status").text("Title, location, start time, and end time are required.");
+                    return;
+                }
+
+                var $submit = $("#edit-submit");
+                $submit.prop("disabled", true).text("Saving...");
+
+                apiRequest({
+                    url: BASE_URL + "/api/events/" + encodeURIComponent(eventId),
+                    method: "PUT",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        title: title,
+                        location: location,
+                        starts_at: new Date(startsAt).toISOString(),
+                        ends_at: new Date(endsAt).toISOString(),
+                        description: $("#description").val()
+                    }),
+                    success: function () {
+                        showToast("Event updated successfully.", "success");
+                        window.location.replace("events.html");
+                    },
+                    error: function (xhr) {
+                        $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to update event.");
+                    },
+                    complete: function () {
+                        $submit.prop("disabled", false).text("Save changes");
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
