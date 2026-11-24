@@ -1,0 +1,21 @@
+/* Shared fallback styles for CivicEvents. Tailwind utility classes provide
+   the responsive layout; these rules cover the base and injected regions. */
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+
+main {
+    flex: 1;
+}
+
+:focus-visible {
+    outline: 3px solid #fbbf24;
+    outline-offset: 2px;
+}
