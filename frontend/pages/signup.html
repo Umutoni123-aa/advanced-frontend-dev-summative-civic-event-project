@@ -9,8 +9,57 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <header id="site-navbar"></header>
-    <main class="mx-auto max-w-md px-4 py-10">
-        <h1 class="text-3xl font-bold">Create an account</h1>
+    <main class="mx-auto w-full max-w-md px-4 py-8 sm:py-10">
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+            <h1 class="text-2xl font-bold sm:text-3xl">Create an account</h1>
+            <p class="mt-2 text-sm text-slate-600">Join CivicEvents to discover and register for city events.</p>
+
+            <form id="signup-form" class="mt-6 space-y-5" novalidate>
+                <div>
+                    <label for="full_name" class="block text-sm font-semibold">Full name</label>
+                    <input id="full_name" name="full_name" type="text" autocomplete="name" aria-describedby="full_name-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="full_name-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-semibold">Email</label>
+                    <input id="email" name="email" type="email" autocomplete="email" aria-describedby="email-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="email-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-semibold">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="new-password"
+                        aria-describedby="password-help password-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="password-help" class="mt-2 text-xs text-slate-600">
+                        Use 8+ characters with upper and lower case letters, a number, and a special character.
+                    </p>
+                    <div class="mt-2" role="progressbar" aria-label="Password strength" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" id="password-strength-bar">
+                        <div class="h-2 overflow-hidden rounded bg-slate-200">
+                            <div id="password-strength-fill" class="h-full w-0 bg-red-600 transition-all"></div>
+                        </div>
+                        <p id="password-strength-text" class="mt-1 text-xs text-slate-700">Password strength: 0 of 5</p>
+                    </div>
+                    <p id="password-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <div>
+                    <label for="confirm_password" class="block text-sm font-semibold">Confirm password</label>
+                    <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" aria-describedby="confirm_password-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="confirm_password-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <p id="signup-status" class="text-sm" role="alert" aria-live="assertive"></p>
+                <button id="signup-submit" type="submit"
+                    class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60">
+                    Create account
+                </button>
+            </form>
+        </div>
     </main>
     <footer id="site-footer"></footer>
 
@@ -19,5 +68,131 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            var $form = $("#signup-form");
+
+            function setFieldError(fieldName, message) {
+                var $field = $("#" + fieldName);
+                var $error = $("#" + fieldName + "-error");
+                $error.text(message || "");
+                $field.toggleClass("border-red-600", Boolean(message));
+                $field.attr("aria-invalid", message ? "true" : "false");
+            }
+
+            function passwordStrength(value) {
+                var checks = [
+                    value.length >= 8,
+                    /[A-Z]/.test(value),
+                    /[a-z]/.test(value),
+                    /\d/.test(value),
+                    /[^A-Za-z0-9]/.test(value)
+                ];
+                return checks.filter(Boolean).length;
+            }
+
+            function passwordIsValid(value) {
+                return value.length >= 8 &&
+                    /[A-Z]/.test(value) &&
+                    /[a-z]/.test(value) &&
+                    /\d/.test(value) &&
+                    /[^A-Za-z0-9]/.test(value);
+            }
+
+            $("#password").on("input", function () {
+                var value = $(this).val();
+                var score = passwordStrength(value);
+                var width = (score * 20) + "%";
+                var fillClass = score <= 2 ? "bg-red-600" : (score <= 4 ? "bg-amber-500" : "bg-green-600");
+
+                $("#password-strength-fill")
+                    .attr("class", "h-full transition-all " + fillClass)
+                    .css("width", width);
+                $("#password-strength-bar").attr("aria-valuenow", score);
+                $("#password-strength-text").text("Password strength: " + score + " of 5");
+
+                if (value && !passwordIsValid(value)) {
+                    setFieldError("password", "Password does not meet all strength requirements.");
+                } else {
+                    setFieldError("password", "");
+                }
+            });
+
+            $("#confirm_password").on("input", function () {
+                var confirmPassword = $(this).val();
+                setFieldError(
+                    "confirm_password",
+                    confirmPassword && confirmPassword !== $("#password").val() ? "Passwords do not match." : ""
+                );
+            });
+
+            function validateForm() {
+                var fullName = $.trim($("#full_name").val());
+                var email = $.trim($("#email").val());
+                var password = $("#password").val();
+                var confirmPassword = $("#confirm_password").val();
+                var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                var firstInvalid = null;
+
+                setFieldError("full_name", fullName ? "" : "Full name is required.");
+                setFieldError("email", !email ? "Email is required." : (!emailPattern.test(email) ? "Enter a valid email address." : ""));
+                setFieldError("password", !password ? "Password is required." : (!passwordIsValid(password) ? "Use 8+ characters with upper/lowercase letters, a number, and a special character." : ""));
+                setFieldError("confirm_password", !confirmPassword ? "Please confirm your password." : (confirmPassword !== password ? "Passwords do not match." : ""));
+
+                $form.find("[aria-invalid='true']").first().each(function () {
+                    firstInvalid = this;
+                });
+
+                if (firstInvalid) {
+                    $(firstInvalid).trigger("focus");
+                    return false;
+                }
+                return true;
+            }
+
+            $form.on("submit", function (event) {
+                event.preventDefault();
+                $("#signup-status").text("");
+
+                if (!validateForm()) {
+                    return;
+                }
+
+                var $submit = $("#signup-submit");
+                $submit.prop("disabled", true).text("Creating account...");
+
+                apiRequest({
+                    url: BASE_URL + "/api/auth/signup",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({
+                        full_name: $.trim($("#full_name").val()),
+                        email: $.trim($("#email").val()),
+                        password: $("#password").val()
+                    }),
+                    success: function (response) {
+                        sessionStorage.setItem("civicEventsSignupSuccess", "Account created successfully. Please log in.");
+                        window.location.replace("login.html");
+                    },
+                    error: function (xhr) {
+                        var response = xhr.responseJSON || {};
+                        var message = response.message || "Unable to create your account.";
+
+                        if (xhr.status === 409 && /email/i.test(message)) {
+                            setFieldError("email", "This email is already registered.");
+                            $("#email").trigger("focus");
+                        } else if (xhr.status >= 400 && xhr.status < 600) {
+                            $("#signup-status").text(message).addClass("text-red-700");
+                        } else {
+                            $("#signup-status").text(message).addClass("text-red-700");
+                        }
+                    },
+                    complete: function () {
+                        $submit.prop("disabled", false).text("Create account");
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

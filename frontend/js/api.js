@@ -25,7 +25,9 @@
     window.apiRequest = function apiRequest(options) {
         var settings = $.extend(true, {}, options);
         var originalError = settings.error;
+        var handleAuthError = settings.handleAuthError !== false;
         var token = window.Auth && window.Auth.getToken();
+        delete settings.handleAuthError;
 
         settings.headers = $.extend({}, settings.headers);
         if (token) {
@@ -34,12 +36,14 @@
 
         settings.error = function (xhr, textStatus, errorThrown) {
             if (xhr.status === 401) {
-                // 401 means the session is no longer valid, so clear all auth data.
-                if (window.Auth) {
-                    window.Auth.clearSession();
+                if (handleAuthError) {
+                    // 401 means the session is no longer valid, so clear all auth data.
+                    if (window.Auth) {
+                        window.Auth.clearSession();
+                    }
+                    var inPages = window.location.pathname.replace(/\\/g, "/").includes("/pages/");
+                    window.location.replace(inPages ? "login.html?expired=1" : "pages/login.html?expired=1");
                 }
-                var inPages = window.location.pathname.replace(/\\/g, "/").includes("/pages/");
-                window.location.replace(inPages ? "login.html" : "pages/login.html");
             } else if (xhr.status === 403) {
                 forbiddenMessage();
             } else if (xhr.status === 0 || textStatus === "timeout") {

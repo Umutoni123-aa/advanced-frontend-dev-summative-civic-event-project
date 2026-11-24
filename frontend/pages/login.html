@@ -9,8 +9,44 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <header id="site-navbar"></header>
-    <main class="mx-auto max-w-md px-4 py-10">
-        <h1 class="text-3xl font-bold">Log in</h1>
+    <main class="mx-auto w-full max-w-md px-4 py-8 sm:py-10">
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+            <h1 class="text-2xl font-bold sm:text-3xl">Log in</h1>
+            <p class="mt-2 text-sm text-slate-600">Use your CivicEvents account to continue.</p>
+
+            <div id="session-message" class="mt-4 hidden rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert" aria-live="assertive"></div>
+
+            <form id="login-form" class="mt-6 space-y-5" novalidate>
+                <div>
+                    <label for="email" class="block text-sm font-semibold">Email</label>
+                    <input id="email" name="email" type="email" autocomplete="email" aria-describedby="email-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="email-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-semibold">Password</label>
+                    <input id="password" name="password" type="password" autocomplete="current-password" aria-describedby="password-error"
+                        class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-700 focus:outline-none">
+                    <p id="password-error" class="mt-1 min-h-5 text-sm text-red-700" aria-live="polite"></p>
+                </div>
+
+                <label class="flex items-center gap-2 text-sm">
+                    <input id="remember-me" name="remember_me" type="checkbox" class="h-4 w-4 rounded border-slate-300">
+                    Remember me
+                </label>
+
+                <p id="login-status" class="text-sm" role="alert" aria-live="assertive"></p>
+                <button id="login-submit" type="submit"
+                    class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-60">
+                    Log in
+                </button>
+            </form>
+            <p class="mt-5 text-center text-sm text-slate-600">
+                New to CivicEvents?
+                <a class="font-semibold text-blue-800 underline" href="signup.html">Create an account</a>
+            </p>
+        </div>
     </main>
     <footer id="site-footer"></footer>
 
@@ -19,5 +55,103 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            var signupMessage = sessionStorage.getItem("civicEventsSignupSuccess");
+            if (signupMessage) {
+                sessionStorage.removeItem("civicEventsSignupSuccess");
+                window.showToast(signupMessage, "success");
+            }
+
+            if (new URLSearchParams(window.location.search).get("expired") === "1") {
+                $("#session-message")
+                    .text("Your session expired. Please log in again.")
+                    .removeClass("hidden");
+            }
+
+            function setFieldError(fieldName, message) {
+                var $field = $("#" + fieldName);
+                var $error = $("#" + fieldName + "-error");
+                $error.text(message || "");
+                $field.toggleClass("border-red-600", Boolean(message));
+                $field.attr("aria-invalid", message ? "true" : "false");
+            }
+
+            function validateForm() {
+                var email = $.trim($("#email").val());
+                var password = $("#password").val();
+                var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                var firstInvalid = null;
+
+                setFieldError("email", !email ? "Email is required." : (!emailPattern.test(email) ? "Enter a valid email address." : ""));
+                setFieldError("password", password ? "" : "Password is required.");
+
+                $("#login-form").find("[aria-invalid='true']").first().each(function () {
+                    firstInvalid = this;
+                });
+                if (firstInvalid) {
+                    $(firstInvalid).trigger("focus");
+                    return false;
+                }
+                return true;
+            }
+
+            $("#login-form").on("submit", function (event) {
+                event.preventDefault();
+                $("#login-status").text("").removeClass("text-red-700");
+                $("#session-message").addClass("hidden");
+
+                if (!validateForm()) {
+                    return;
+                }
+
+                var $submit = $("#login-submit");
+                $submit.prop("disabled", true).text("Logging in...");
+
+                apiRequest({
+                    url: BASE_URL + "/api/auth/login",
+                    method: "POST",
+                    contentType: "application/json",
+                    handleAuthError: false,
+                    data: JSON.stringify({
+                        email: $.trim($("#email").val()),
+                        password: $("#password").val()
+                    }),
+                    success: function (response) {
+                        var data = response.data || {};
+                        var user = data.user || {};
+
+                        if (!data.token || !user.id) {
+                            $("#login-status").text("The server returned an invalid login response.").addClass("text-red-700");
+                            return;
+                        }
+
+                        Auth.saveSession(data.token, {
+                            id: user.id,
+                            full_name: user.full_name,
+                            role: user.role
+                        }, $("#remember-me").is(":checked"));
+
+                        window.showToast("Login successful.", "success");
+                        window.location.replace(user.role === "admin" ? "dashboard.html" : "events.html");
+                    },
+                    error: function (xhr) {
+                        var response = xhr.responseJSON || {};
+                        var message = response.message || "Unable to log in.";
+
+                        if (xhr.status === 401) {
+                            $("#login-status").text(message || "Invalid email or password.").addClass("text-red-700");
+                            $("#password").trigger("focus");
+                        } else if (xhr.status >= 400 && xhr.status < 600) {
+                            $("#login-status").text(message).addClass("text-red-700");
+                        }
+                    },
+                    complete: function () {
+                        $submit.prop("disabled", false).text("Log in");
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

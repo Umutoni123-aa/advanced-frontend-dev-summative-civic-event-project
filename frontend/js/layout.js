@@ -12,6 +12,9 @@
     }
 
     function showToast(message, type) {
+        if ($("#toast-container").length === 0) {
+            $("body").append('<div id="toast-container" aria-live="polite" aria-atomic="true"></div>');
+        }
         var success = type === "success";
         var tone = success
             ? "border-green-500 bg-green-50 text-green-900"
