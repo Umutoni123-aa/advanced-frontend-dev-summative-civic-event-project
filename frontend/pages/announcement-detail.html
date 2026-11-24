@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Announcement | CivicEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-3xl px-4 py-8 sm:py-10">
+        <a href="announcements.html" class="text-sm font-semibold text-blue-800 underline">Back to announcements</a>
+        <div id="announcement-loading" class="mt-5 h-64 animate-pulse rounded-xl bg-slate-200"></div>
+        <article id="announcement-detail" class="mt-5 hidden rounded-xl border bg-white p-5 shadow-sm sm:p-8">
+            <h1 id="announcement-title" class="text-3xl font-bold"></h1>
+            <p id="announcement-meta" class="mt-2 text-sm text-slate-600"></p>
+            <audio id="announcement-audio" class="mt-6 w-full" controls preload="metadata" aria-label="Announcement audio">
+                Your browser does not support the HTML5 audio player. Use the transcript below or download the audio from the source.
+            </audio>
+            <section class="mt-8 border-t pt-6" aria-labelledby="transcript-heading">
+                <h2 id="transcript-heading" class="text-xl font-bold">Transcript</h2>
+                <p id="announcement-transcript" class="mt-3 whitespace-pre-line text-slate-700">A transcript is not available for this announcement.</p>
+            </section>
+        </article>
+        <p id="announcement-error" class="mt-5 hidden rounded-lg border border-red-200 bg-red-50 p-4 text-red-800" role="alert"></p>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+            var id = new URLSearchParams(window.location.search).get("id");
+            if (!id) { $("#announcement-loading").hide(); $("#announcement-error").text("No announcement was specified.").removeClass("hidden"); return; }
+            function escapeHtml(value) { return $("<div>").text(value == null ? "" : value).html(); }
+            apiRequest({
+                url: BASE_URL + "/api/announcements/" + encodeURIComponent(id),
+                method: "GET",
+                success: function (response) {
+                    var item = response.data || {};
+                    var user = Auth.getUser();
+                    if (item.published === false && (!user || user.role !== "admin")) {
+                        $("#announcement-loading").hide();
+                        $("#announcement-error").text("This announcement is not published.").removeClass("hidden");
+                        return;
+                    }
+                    $("#announcement-title").text(item.title || "Untitled announcement");
+                    var date = new Date(item.created_at);
+                    $("#announcement-meta").text((item.duration_seconds != null ? item.duration_seconds + " seconds - " : "") + (!Number.isNaN(date.getTime()) ? date.toLocaleString() : "Date unavailable"));
+                    if (item.audio_url) $("#announcement-audio").attr("src", item.audio_url);
+                    if (item.transcript) $("#announcement-transcript").text(item.transcript);
+                    document.title = (item.title || "Announcement") + " | CivicEvents";
+                    $("#announcement-loading").hide();
+                    $("#announcement-detail").removeClass("hidden");
+                },
+                error: function (xhr) {
+                    $("#announcement-loading").hide();
+                    $("#announcement-error").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load announcement.").removeClass("hidden");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

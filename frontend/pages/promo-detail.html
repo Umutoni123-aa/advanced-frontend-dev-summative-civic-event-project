@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Promo | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+        <a href="promos.html" class="text-sm font-semibold text-blue-800 underline">Back to promos</a>
+        <div id="promo-loading" class="mt-5 h-96 animate-pulse rounded-xl bg-slate-200"></div>
+        <article id="promo-detail" class="mt-5 hidden overflow-hidden rounded-xl border bg-white shadow-sm">
+            <video id="promo-video" class="aspect-video w-full bg-black" controls preload="metadata" crossorigin="anonymous" aria-label="Promo video">
+                <track id="promo-captions" kind="captions" srclang="en" label="English" default>
+                <p>Your browser does not support the HTML5 video player. Read the description and transcript below.</p>
+            </video>
+            <div class="p-5 sm:p-8">
+                <h1 id="promo-title" class="text-3xl font-bold"></h1>
+                <section class="mt-6" aria-labelledby="description-heading"><h2 id="description-heading" class="text-xl font-bold">Description and transcript</h2><p id="promo-description" class="mt-3 whitespace-pre-line text-slate-700"></p></section>
+            </div>
+        </article>
+        <p id="promo-error" class="mt-5 hidden rounded-lg border border-red-200 bg-red-50 p-4 text-red-800" role="alert"></p>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+            var id = new URLSearchParams(window.location.search).get("id");
+            if (!id) { $("#promo-loading").hide(); $("#promo-error").text("No promo was specified.").removeClass("hidden"); return; }
+            apiRequest({
+                url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "GET",
+                success: function (response) {
+                    var item = response.data || {};
+                    var user = Auth.getUser();
+                    if (item.published === false && (!user || user.role !== "admin")) { $("#promo-loading").hide(); $("#promo-error").text("This promo is not published.").removeClass("hidden"); return; }
+                    $("#promo-title").text(item.title || "Untitled promo");
+                    var text = item.description || "No description available.";
+                    if (item.caption_text) text += "\n\nTranscript/captions:\n" + item.caption_text;
+                    $("#promo-description").text(text);
+                    if (item.video_url) $("#promo-video").attr("poster", "").attr("preload", "none").attr("src", item.video_url);
+                    if (item.caption_text) {
+                        var vtt = "WEBVTT\n\n00:00:00.000 --> 00:10:00.000\n" + item.caption_text.replace(/\n/g, "\n");
+                        $("#promo-captions")
+                            .attr("src", URL.createObjectURL(new Blob([vtt], { type: "text/vtt" })))
+                            .attr("default", "default");
+                        $("#promo-video")[0].textTracks[0] && ($("#promo-video")[0].textTracks[0].mode = "showing");
+                    }
+                    document.title = (item.title || "Promo") + " | CivicEvents";
+                    $("#promo-loading").hide(); $("#promo-detail").removeClass("hidden");
+                },
+                error: function (xhr) { $("#promo-loading").hide(); $("#promo-error").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load promo.").removeClass("hidden"); }
+            });
+        });
+    </script>
+</body>
+</html>

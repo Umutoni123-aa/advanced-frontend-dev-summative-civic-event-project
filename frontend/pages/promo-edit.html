@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Edit promo | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-xl px-4 py-8 sm:py-10">
+        <a href="promos.html" class="text-sm font-semibold text-blue-800 underline">Back to promos</a><h1 class="mt-4 text-3xl font-bold">Edit promo</h1>
+        <form id="promo-edit-form" class="mt-6 space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:p-8">
+            <div><label for="title" class="block text-sm font-semibold">Title</label><input id="title" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></div>
+            <div><label for="description" class="block text-sm font-semibold">Description</label><textarea id="description" rows="4" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea></div>
+            <div><label for="caption_text" class="block text-sm font-semibold">Caption text / transcript</label><textarea id="caption_text" rows="4" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea></div>
+            <div><label for="video" class="block text-sm font-semibold">Replace video (optional)</label><input id="video" type="file" accept=".mp4,.mov,.avi,.mkv,video/*" class="mt-1 w-full rounded-md border border-slate-300 p-2"></div>
+            <label class="flex items-center gap-2 text-sm font-semibold"><input id="published" type="checkbox" class="h-4 w-4"> Published</label>
+            <p id="edit-status" class="text-sm" role="alert" aria-live="assertive"></p>
+            <button id="edit-submit" type="submit" class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white disabled:opacity-60">Save changes</button>
+        </form>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            // Role guard: only administrators can edit promo content.
+            if (!Auth.requireAdmin()) { document.body.setAttribute("hidden", "hidden"); return; }
+            var id = new URLSearchParams(window.location.search).get("id");
+            if (!id) { $("#edit-status").text("No promo was specified."); return; }
+            apiRequest({
+                url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "GET",
+                success: function (response) { var item = response.data || {}; $("#title").val(item.title || ""); $("#description").val(item.description || ""); $("#caption_text").val(item.caption_text || ""); $("#published").prop("checked", item.published !== false); },
+                error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load promo."); }
+            });
+            $("#promo-edit-form").on("submit", function (event) {
+                event.preventDefault();
+                var title = $.trim($("#title").val()), description = $.trim($("#description").val()), captions = $.trim($("#caption_text").val());
+                if (!title || !description || !captions) { $("#edit-status").text("Title, description, and caption text are required."); return; }
+                var formData = new FormData();
+                formData.append("title", title); formData.append("description", description); formData.append("caption_text", captions); formData.append("published", $("#published").is(":checked") ? "true" : "false");
+                if ($("#video")[0].files[0]) formData.append("video", $("#video")[0].files[0]);
+                var $submit = $("#edit-submit"); $submit.prop("disabled", true).text("Saving...");
+                apiRequest({
+                    url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "PUT", processData: false, contentType: false, data: formData,
+                    success: function (response) { showToast(response.message || "Promo updated.", "success"); window.location.replace("promos.html"); },
+                    error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to update promo."); },
+                    complete: function () { $submit.prop("disabled", false).text("Save changes"); }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

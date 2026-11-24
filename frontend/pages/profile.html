@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Profile | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-xl px-4 py-8 sm:py-10">
+        <h1 class="text-3xl font-bold">My profile</h1>
+        <p id="profile-status" class="mt-2 text-sm text-slate-600" aria-live="polite"></p>
+        <form id="profile-form" class="mt-6 hidden space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:p-8" novalidate>
+            <div><label for="full_name" class="block text-sm font-semibold">Full name</label><input id="full_name" type="text" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"><p id="full_name-error" class="mt-1 text-sm text-red-700" aria-live="polite"></p></div>
+            <div><label for="email" class="block text-sm font-semibold">Email</label><input id="email" type="email" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"><p id="email-error" class="mt-1 text-sm text-red-700" aria-live="polite"></p></div>
+            <dl class="grid gap-3 rounded-lg bg-slate-100 p-4 text-sm"><div><dt class="font-semibold">Role</dt><dd id="profile-role"></dd></div><div><dt class="font-semibold">Account status</dt><dd id="profile-active"></dd></div></dl>
+            <button id="profile-submit" type="submit" class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white disabled:opacity-60">Save profile</button>
+        </form>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+            apiRequest({
+                url: BASE_URL + "/api/users/profile/me", method: "GET",
+                success: function (response) {
+                    var profile = response.data || {};
+                    $("#full_name").val(profile.full_name || "");
+                    $("#email").val(profile.email || "");
+                    $("#profile-role").text(profile.role || "user");
+                    $("#profile-active").text(profile.is_active ? "Active" : "Disabled");
+                    $("#profile-status").text("Profile loaded.");
+                    $("#profile-form").removeClass("hidden");
+                },
+                error: function (xhr) { $("#profile-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load profile."); }
+            });
+            $("#profile-form").on("submit", function (event) {
+                event.preventDefault();
+                $("#full_name-error, #email-error").text("");
+                var fullName = $.trim($("#full_name").val()), email = $.trim($("#email").val());
+                if (!fullName) { $("#full_name-error").text("Full name is required."); $("#full_name").trigger("focus"); return; }
+                if (!email) { $("#email-error").text("Email is required."); $("#email").trigger("focus"); return; }
+                var $submit = $("#profile-submit"); $submit.prop("disabled", true).text("Saving...");
+                apiRequest({
+                    url: BASE_URL + "/api/users/profile/me", method: "PATCH", contentType: "application/json",
+                    data: JSON.stringify({ full_name: fullName, email: email }),
+                    success: function (response) {
+                        var profile = response.data || {};
+                        showToast(response.message || "Profile updated.", "success");
+                        var stored = Auth.getUser();
+                        if (stored) Auth.saveSession(Auth.getToken(), { id: stored.id, full_name: profile.full_name || fullName, role: stored.role }, Auth.getRememberPreference());
+                        $("#profile-status").text("Profile updated.");
+                    },
+                    error: function (xhr) {
+                        var message = (xhr.responseJSON && xhr.responseJSON.message) || "Unable to update profile.";
+                        if (xhr.status === 409) { $("#email-error").text("This email is already in use."); $("#email").trigger("focus"); }
+                        else $("#profile-status").text(message);
+                    },
+                    complete: function () { $submit.prop("disabled", false).text("Save profile"); }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

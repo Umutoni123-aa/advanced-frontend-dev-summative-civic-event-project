@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Promos | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div><p class="text-sm font-semibold text-blue-800">CivicEvents</p><h1 class="text-3xl font-bold">Promos</h1></div>
+            <div id="promo-admin-actions" class="hidden"><a href="promo-create.html" class="inline-block rounded-md bg-blue-800 px-4 py-2 text-sm font-semibold text-white">Create promo</a></div>
+        </div>
+        <p id="promos-status" class="sr-only" aria-live="polite"></p>
+        <div id="promos-loading" class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading promos"><div class="h-64 animate-pulse rounded-xl bg-slate-200"></div><div class="h-64 animate-pulse rounded-xl bg-slate-200"></div><div class="h-64 animate-pulse rounded-xl bg-slate-200"></div></div>
+        <div id="promos-grid" class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"></div>
+        <div id="promos-empty" class="mt-8 hidden rounded-xl border border-dashed p-8 text-center"><h2 class="font-bold">No promos</h2><p class="mt-2 text-sm text-slate-600">There are no published promos yet.</p></div>
+        <nav id="promos-pagination" class="mt-8 flex items-center justify-center gap-3" aria-label="Promo pagination"></nav>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+            var user = Auth.getUser();
+            var isAdmin = user && user.role === "admin";
+            if (isAdmin) $("#promo-admin-actions").removeClass("hidden");
+            var page = 1;
+
+            function escapeHtml(value) { return $("<div>").text(value == null ? "" : value).html(); }
+            function deletePromo(id) {
+                if (!window.confirm("Delete this promo?")) return;
+                apiRequest({
+                    url: BASE_URL + "/api/promos/" + encodeURIComponent(id), method: "DELETE",
+                    success: function (response) { showToast(response.message || "Promo deleted.", "success"); loadPromos(page); },
+                    error: function (xhr) { showToast((xhr.responseJSON && xhr.responseJSON.message) || "Unable to delete promo.", "error"); }
+                });
+            }
+            window.loadPromos = function loadPromos(requestedPage) {
+                page = requestedPage || 1;
+                $("#promos-loading").show();
+                apiRequest({
+                    url: BASE_URL + "/api/promos?page=" + page + "&limit=20", method: "GET",
+                    success: function (response) {
+                        var items = Array.isArray(response.data) ? response.data : [];
+                        if (!isAdmin) items = items.filter(function (item) { return item.published !== false; });
+                        $("#promos-loading").hide();
+                        $("#promos-status").text(items.length + " promos found.");
+                        $("#promos-empty").toggleClass("hidden", items.length !== 0);
+                        $("#promos-grid").empty();
+                        items.forEach(function (item) {
+                            var description = $.trim(item.description || "");
+                            if (description.length > 150) description = description.substring(0, 147) + "...";
+                            var adminButtons = isAdmin
+                                ? '<a href="promo-edit.html?id=' + encodeURIComponent(item.id) + '" class="rounded-md border px-3 py-2 text-sm font-semibold">Edit</a>' +
+                                  '<button type="button" data-delete-promo="' + escapeHtml(item.id) + '" class="rounded-md border border-red-600 px-3 py-2 text-sm font-semibold text-red-700">Delete</button>'
+                                : "";
+                            $("#promos-grid").append(
+                                '<article class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">' +
+                                '<div class="flex h-44 items-center justify-center bg-slate-900 text-white" aria-hidden="true"><span class="text-4xl">&#9654;</span></div>' +
+                                '<div class="p-5"><h2 class="text-xl font-bold">' + escapeHtml(item.title) + '</h2>' +
+                                '<p class="mt-3 text-sm text-slate-700">' + escapeHtml(description || "No description available.") + '</p>' +
+                                (!item.published && isAdmin ? '<p class="mt-3 text-xs font-bold uppercase text-amber-700">Unpublished</p>' : '') +
+                                '<div class="mt-5 flex flex-wrap gap-2"><a href="promo-detail.html?id=' + encodeURIComponent(item.id) + '" class="rounded-md bg-blue-800 px-3 py-2 text-sm font-semibold text-white">View promo</a>' + adminButtons + '</div></div></article>'
+                            );
+                        });
+                        var pagination = response.pagination || {};
+                        var pages = Number(pagination.pages || 1);
+                        $("#promos-pagination").html(
+                            pages > 1
+                            ? '<button type="button" id="previous-promo-page" class="rounded border px-3 py-2 text-sm" ' + (page <= 1 ? "disabled" : "") + '>Previous</button>' +
+                              '<span class="text-sm">Page ' + page + ' of ' + pages + '</span>' +
+                              '<button type="button" id="next-promo-page" class="rounded border px-3 py-2 text-sm" ' + (page >= pages ? "disabled" : "") + '>Next</button>'
+                            : ""
+                        );
+                    },
+                    error: function (xhr) {
+                        $("#promos-loading").hide(); $("#promos-empty").removeClass("hidden").find("h2").text("Promos could not be loaded");
+                        $("#promos-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load promos.");
+                    }
+                });
+            };
+            $(document).on("click", "[data-delete-promo]", function () { deletePromo($(this).attr("data-delete-promo")); });
+            $(document).on("click", "#previous-promo-page", function () { loadPromos(page - 1); });
+            $(document).on("click", "#next-promo-page", function () { loadPromos(page + 1); });
+            loadPromos(1);
+        });
+    </script>
+</body>
+</html>

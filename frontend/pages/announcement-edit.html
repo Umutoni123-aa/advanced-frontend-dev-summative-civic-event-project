@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Edit announcement | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-xl px-4 py-8 sm:py-10">
+        <a href="announcements.html" class="text-sm font-semibold text-blue-800 underline">Back to announcements</a>
+        <h1 class="mt-4 text-3xl font-bold">Edit announcement</h1>
+        <form id="announcement-edit-form" class="mt-6 space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:p-8">
+            <div><label for="title" class="block text-sm font-semibold">Title</label><input id="title" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></div>
+            <div><label for="audio" class="block text-sm font-semibold">Replace audio (optional)</label><input id="audio" type="file" accept=".mp3,.wav,.m4a,.ogg,audio/*" class="mt-1 w-full rounded-md border border-slate-300 p-2"></div>
+            <label class="flex items-center gap-2 text-sm font-semibold"><input id="published" type="checkbox" class="h-4 w-4"> Published</label>
+            <p id="edit-status" class="text-sm" role="alert" aria-live="assertive"></p>
+            <button id="edit-submit" type="submit" class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white disabled:opacity-60">Save changes</button>
+        </form>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            // Role guard: only admins may edit announcements.
+            if (!Auth.requireAdmin()) { document.body.setAttribute("hidden", "hidden"); return; }
+            var id = new URLSearchParams(window.location.search).get("id");
+            if (!id) { $("#edit-status").text("No announcement was specified."); return; }
+            apiRequest({
+                url: BASE_URL + "/api/announcements/" + encodeURIComponent(id), method: "GET",
+                success: function (response) { var item = response.data || {}; $("#title").val(item.title || ""); $("#published").prop("checked", item.published !== false); },
+                error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load announcement."); }
+            });
+            $("#announcement-edit-form").on("submit", function (event) {
+                event.preventDefault();
+                var title = $.trim($("#title").val());
+                if (!title) { $("#edit-status").text("Title is required."); return; }
+                var formData = new FormData();
+                formData.append("title", title);
+                formData.append("published", $("#published").is(":checked") ? "true" : "false");
+                if ($("#audio")[0].files[0]) formData.append("audio", $("#audio")[0].files[0]);
+                var $submit = $("#edit-submit");
+                $submit.prop("disabled", true).text("Saving...");
+                apiRequest({
+                    url: BASE_URL + "/api/announcements/" + encodeURIComponent(id), method: "PUT", processData: false, contentType: false, data: formData,
+                    success: function (response) { showToast(response.message || "Announcement updated.", "success"); window.location.replace("announcements.html"); },
+                    error: function (xhr) { $("#edit-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to update announcement."); },
+                    complete: function () { $submit.prop("disabled", false).text("Save changes"); }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

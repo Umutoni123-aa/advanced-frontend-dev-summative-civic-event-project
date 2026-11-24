@@ -9,8 +9,32 @@
 </head>
 <body class="bg-slate-50 text-slate-900">
     <header id="site-navbar"></header>
-    <main class="mx-auto max-w-7xl px-4 py-10">
-        <h1 class="text-3xl font-bold">Admin dashboard</h1>
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+        <div class="grid gap-6 lg:grid-cols-[240px_1fr]">
+            <aside class="h-fit rounded-xl border bg-white p-4" aria-label="Admin navigation">
+                <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Admin pages</h2>
+                <nav class="mt-3 space-y-1">
+                    <a href="dashboard.html" class="block rounded px-3 py-2 text-sm font-semibold bg-blue-50 text-blue-900">Dashboard</a>
+                    <a href="users.html" class="block rounded px-3 py-2 text-sm hover:bg-slate-100">Users</a>
+                    <a href="event-create.html" class="block rounded px-3 py-2 text-sm hover:bg-slate-100">Create event</a>
+                    <a href="announcement-create.html" class="block rounded px-3 py-2 text-sm hover:bg-slate-100">Create announcement</a>
+                    <a href="promo-create.html" class="block rounded px-3 py-2 text-sm hover:bg-slate-100">Create promo</a>
+                </nav>
+            </aside>
+            <div>
+                <h1 class="text-3xl font-bold">Admin dashboard</h1>
+                <p id="dashboard-status" class="mt-2 text-sm text-slate-600" aria-live="polite"></p>
+                <div id="dashboard-loading" class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading dashboard">
+                    <div class="h-28 animate-pulse rounded-xl bg-slate-200"></div><div class="h-28 animate-pulse rounded-xl bg-slate-200"></div><div class="h-28 animate-pulse rounded-xl bg-slate-200"></div><div class="h-28 animate-pulse rounded-xl bg-slate-200"></div>
+                </div>
+                <section id="dashboard-cards" class="mt-6 hidden grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Dashboard summary"></section>
+                <section class="mt-6 rounded-xl border bg-white p-5" aria-labelledby="growth-heading">
+                    <h2 id="growth-heading" class="text-lg font-bold">New users over the last 6 months</h2>
+                    <div id="growth-chart" class="mt-5 flex h-52 items-end gap-3 border-b border-l pl-2" role="img" aria-label="User growth chart"></div>
+                    <p id="growth-empty" class="hidden mt-4 text-sm text-slate-600">No user growth data available.</p>
+                </section>
+            </div>
+        </div>
     </main>
     <footer id="site-footer"></footer>
 
@@ -24,6 +48,50 @@
         if (!window.Auth.requireAdmin()) {
             document.body.setAttribute("hidden", "hidden");
         }
+        $(function () {
+            apiRequest({
+                url: BASE_URL + "/api/dashboard/admin",
+                method: "GET",
+                success: function (response) {
+                    var stats = response.data || {};
+                    $("#dashboard-loading").hide();
+                    $("#dashboard-cards").removeClass("hidden");
+                    $("#dashboard-status").text("Dashboard summary loaded.");
+                    var cards = [
+                        ["Events", stats.events && stats.events.total_events],
+                        ["Promos", stats.promos && stats.promos.total_promos],
+                        ["Users", stats.users && stats.users.total_users],
+                        ["Registrations", stats.registrations && stats.registrations.total_registrations],
+                        ["Notifications", stats.notifications && stats.notifications.total_notifications],
+                        ["Announcements", stats.announcements && stats.announcements.total_announcements]
+                    ];
+                    cards.forEach(function (card) {
+                        $("#dashboard-cards").append(
+                            '<article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold text-slate-600">' +
+                            card[0] + '</h2><p class="mt-2 text-3xl font-bold text-blue-900">' + (card[1] == null ? "0" : card[1]) + '</p></article>'
+                        );
+                    });
+
+                    var growth = Array.isArray(stats.user_growth) ? stats.user_growth : [];
+                    if (!growth.length) {
+                        $("#growth-empty").removeClass("hidden");
+                        return;
+                    }
+                    var max = Math.max.apply(null, growth.map(function (item) { return Number(item.new_users); }));
+                    growth.forEach(function (item) {
+                        var height = max ? Math.max(8, (Number(item.new_users) / max) * 180) : 8;
+                        $("#growth-chart").append(
+                            '<div class="flex h-full flex-1 items-end"><div class="w-full rounded-t bg-blue-700" style="height:' + height + 'px" title="' +
+                            $("<div>").text(item.month + ": " + item.new_users).html() + '"><span class="sr-only">' + $("<div>").text(item.month + ": " + item.new_users + " users").html() + '</span></div></div>'
+                        );
+                    });
+                },
+                error: function (xhr) {
+                    $("#dashboard-loading").hide();
+                    $("#dashboard-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load dashboard.");
+                }
+            });
+        });
     </script>
 </body>
 </html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Announcements | CivicEvents</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div><p class="text-sm font-semibold text-blue-800">CivicEvents</p><h1 class="text-3xl font-bold">Announcements</h1></div>
+            <div id="announcement-admin-actions" class="hidden">
+                <a href="announcement-create.html" class="inline-block rounded-md bg-blue-800 px-4 py-2 text-sm font-semibold text-white">Create announcement</a>
+            </div>
+        </div>
+        <p id="announcements-status" class="sr-only" aria-live="polite"></p>
+        <div id="announcements-loading" class="mt-6 space-y-3" aria-label="Loading announcements">
+            <div class="h-24 animate-pulse rounded-xl bg-slate-200"></div><div class="h-24 animate-pulse rounded-xl bg-slate-200"></div>
+        </div>
+        <div id="announcements-list" class="mt-6 space-y-3"></div>
+        <div id="announcements-empty" class="mt-8 hidden rounded-xl border border-dashed p-8 text-center"><h2 class="font-bold">No announcements</h2><p class="mt-2 text-sm text-slate-600">There are no published announcements yet.</p></div>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            if (!Auth.requireLogin()) return;
+            var user = Auth.getUser();
+            var isAdmin = user && user.role === "admin";
+            if (isAdmin) $("#announcement-admin-actions").removeClass("hidden");
+
+            function escapeHtml(value) { return $("<div>").text(value == null ? "" : value).html(); }
+            function formatDate(value) {
+                var date = new Date(value);
+                return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+            }
+
+            function deleteAnnouncement(id) {
+                if (!window.confirm("Delete this announcement?")) return;
+                apiRequest({
+                    url: BASE_URL + "/api/announcements/" + encodeURIComponent(id),
+                    method: "DELETE",
+                    success: function (response) { showToast(response.message || "Announcement deleted.", "success"); loadAnnouncements(); },
+                    error: function (xhr) { showToast((xhr.responseJSON && xhr.responseJSON.message) || "Unable to delete announcement.", "error"); }
+                });
+            }
+
+            window.loadAnnouncements = function loadAnnouncements() {
+                $("#announcements-loading").show();
+                apiRequest({
+                    url: BASE_URL + "/api/announcements",
+                    method: "GET",
+                    success: function (response) {
+                        var items = Array.isArray(response.data) ? response.data : [];
+                        if (!isAdmin) items = items.filter(function (item) { return item.published !== false; });
+                        $("#announcements-loading").hide();
+                        $("#announcements-status").text(items.length + " announcements found.");
+                        $("#announcements-empty").toggleClass("hidden", items.length !== 0);
+                        $("#announcements-list").empty();
+                        items.forEach(function (item) {
+                            var duration = item.duration_seconds != null ? item.duration_seconds + " seconds" : "Duration unavailable";
+                            var adminButtons = isAdmin
+                                ? '<a href="announcement-edit.html?id=' + encodeURIComponent(item.id) + '" class="rounded-md border px-3 py-2 text-sm font-semibold">Edit</a>' +
+                                  '<button type="button" data-delete-announcement="' + escapeHtml(item.id) + '" class="rounded-md border border-red-600 px-3 py-2 text-sm font-semibold text-red-700">Delete</button>'
+                                : "";
+                            $("#announcements-list").append(
+                                '<article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">' +
+                                '<h2 class="text-xl font-bold">' + escapeHtml(item.title) + '</h2>' +
+                                '<p class="mt-1 text-sm text-slate-600">' + escapeHtml(duration) + ' - ' + escapeHtml(formatDate(item.created_at)) + '</p>' +
+                                '<div class="mt-4 flex flex-wrap items-center gap-2">' +
+                                '<a href="announcement-detail.html?id=' + encodeURIComponent(item.id) + '" class="rounded-md bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Play announcement</a>' +
+                                (!item.published && isAdmin ? '<span class="text-xs font-bold uppercase text-amber-700">Unpublished</span>' : '') +
+                                adminButtons + '</div></article>'
+                            );
+                        });
+                    },
+                    error: function (xhr) {
+                        $("#announcements-loading").hide();
+                        $("#announcements-empty").removeClass("hidden").find("h2").text("Announcements could not be loaded");
+                        $("#announcements-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to load announcements.");
+                    }
+                });
+            };
+
+            $(document).on("click", "[data-delete-announcement]", function () {
+                deleteAnnouncement($(this).attr("data-delete-announcement"));
+            });
+            loadAnnouncements();
+        });
+    </script>
+</body>
+</html>

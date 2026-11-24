@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Create promo | CivicEvents</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="../css/styles.css"></head>
+<body class="bg-slate-50 text-slate-900">
+    <header id="site-navbar"></header>
+    <main class="mx-auto max-w-xl px-4 py-8 sm:py-10">
+        <a href="promos.html" class="text-sm font-semibold text-blue-800 underline">Back to promos</a>
+        <h1 class="mt-4 text-3xl font-bold">Create promo</h1>
+        <form id="promo-form" class="mt-6 space-y-5 rounded-xl border bg-white p-5 shadow-sm sm:p-8" novalidate>
+            <div><label for="title" class="block text-sm font-semibold">Title</label><input id="title" type="text" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></div>
+            <div><label for="description" class="block text-sm font-semibold">Description</label><textarea id="description" rows="4" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea></div>
+            <div><label for="caption_text" class="block text-sm font-semibold">Caption text / transcript</label><textarea id="caption_text" rows="4" required class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"></textarea></div>
+            <div><label for="video" class="block text-sm font-semibold">Video file</label><input id="video" type="file" accept=".mp4,.mov,.avi,.mkv,video/*" required class="mt-1 w-full rounded-md border border-slate-300 p-2"><p id="video-error" class="mt-1 text-sm text-red-700" aria-live="polite"></p></div>
+            <label class="flex items-center gap-2 text-sm font-semibold"><input id="published" type="checkbox" checked class="h-4 w-4"> Published</label>
+            <div id="upload-progress-wrap" class="hidden"><div class="h-3 overflow-hidden rounded bg-slate-200" role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="upload-progress" class="h-full w-0 bg-blue-700"></div></div><p id="upload-progress-text" class="mt-1 text-sm text-slate-600">Uploading: 0%</p></div>
+            <p id="promo-status" class="text-sm" role="alert" aria-live="assertive"></p>
+            <button id="promo-submit" type="submit" class="w-full rounded-md bg-blue-800 px-4 py-3 font-semibold text-white disabled:opacity-60">Create promo</button>
+        </form>
+    </main>
+    <footer id="site-footer"></footer>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="../js/config.js"></script><script src="../js/auth.js"></script><script src="../js/api.js"></script><script src="../js/layout.js"></script>
+    <script>
+        $(function () {
+            // Role guard: promo creation is restricted to administrators.
+            if (!Auth.requireAdmin()) { document.body.setAttribute("hidden", "hidden"); return; }
+            $("#video").on("change", function () {
+                var file = this.files && this.files[0]; $("#video-error").text("");
+                if (!file) return;
+                var ext = "." + file.name.split(".").pop().toLowerCase();
+                if ([".mp4",".mov",".avi",".mkv"].indexOf(ext) === -1) { $("#video-error").text("Choose an MP4, MOV, AVI, or MKV video."); this.value = ""; return; }
+                if (file.size > 8 * 1024 * 1024) { $("#video-error").text("Video must be 8 MB or smaller."); this.value = ""; }
+            });
+            $("#promo-form").on("submit", function (event) {
+                event.preventDefault();
+                var title = $.trim($("#title").val()), description = $.trim($("#description").val()), captions = $.trim($("#caption_text").val()), file = $("#video")[0].files[0];
+                if (!title || !description || !captions || !file) { $("#promo-status").text("Title, description, caption text, and video are required."); return; }
+                var formData = new FormData();
+                formData.append("title", title); formData.append("description", description); formData.append("caption_text", captions); formData.append("published", $("#published").is(":checked") ? "true" : "false"); formData.append("video", file);
+                var $submit = $("#promo-submit"); $submit.prop("disabled", true).text("Uploading...");
+                $("#upload-progress-wrap").removeClass("hidden");
+                apiRequest({
+                    url: BASE_URL + "/api/promos", method: "POST", processData: false, contentType: false, data: formData,
+                    xhr: function () { var xhr = $.ajaxSettings.xhr(); if (xhr.upload) xhr.upload.addEventListener("progress", function (progress) { if (!progress.lengthComputable) return; var percent = Math.round(progress.loaded / progress.total * 100); $("#upload-progress").css("width", percent + "%"); $("#upload-progress").parent().attr("aria-valuenow", percent); $("#upload-progress-text").text("Uploading: " + percent + "%"); }); return xhr; },
+                    success: function (response) { showToast(response.message || "Promo created successfully.", "success"); window.location.replace("promos.html"); },
+                    error: function (xhr) { $("#promo-status").text((xhr.responseJSON && xhr.responseJSON.message) || "Unable to create promo."); },
+                    complete: function () { $submit.prop("disabled", false).text("Create promo"); }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
