@@ -57,4 +57,4 @@ Log out and log in again.
 
 ## Known backend limits
 
-The provided backend has no route to create a broadcast notification and no endpoint to mark a notification as read, so read state is stored on the client still working on it though.
+The provided backend has no route to create a broadcast notification and no endpoint to mark a notification as read, so read state is stored on the client working on it though.
