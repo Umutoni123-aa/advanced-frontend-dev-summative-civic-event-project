@@ -15,7 +15,10 @@
                 <p class="text-sm font-semibold text-blue-800">CivicEvents</p>
                 <h1 class="text-3xl font-bold">City events</h1>
             </div>
-            <a href="my-registrations.html" class="rounded-md border border-blue-800 px-4 py-2 text-center text-sm font-semibold text-blue-800 hover:bg-blue-50">My registrations</a>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <a id="add-event-link" href="event-create.html" class="hidden rounded-md bg-blue-800 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-blue-900">Add event</a>
+                <a href="my-registrations.html" class="rounded-md border border-blue-800 px-4 py-2 text-center text-sm font-semibold text-blue-800 hover:bg-blue-50">My registrations</a>
+            </div>
         </div>
 
         <form id="event-filters" class="mt-6 grid gap-3 rounded-xl border bg-white p-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" role="search">
@@ -63,7 +66,13 @@
     <script src="../js/layout.js"></script>
     <script>
         $(function () {
-            var currentPage = 1;
+        var currentUser = Auth.getUser();
+        // Role-based guard: only admins should see the Add event control.
+        if (currentUser && currentUser.role === "admin") {
+            $("#add-event-link").removeClass("hidden");
+        }
+
+        var currentPage = 1;
             var pageSize = 9;
             var allEvents = [];
 

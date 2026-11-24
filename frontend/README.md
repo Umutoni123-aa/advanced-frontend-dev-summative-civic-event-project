@@ -1,40 +1,57 @@
-# CivicEvents frontend
+=# CivicEvents Frontend
 
-## Run the app
+Frontend for the CivicEvents+ portal, built with HTML, Tailwind CSS (CDN) and jQuery (CDN). There is no build step.
 
-The frontend is static and uses HTML, Tailwind CSS from its CDN, and jQuery
-from its CDN. It requires no framework build step.
+## Run the backend
 
-1. Start the CivicEvents backend on `http://localhost:4000`.
-2. Serve this `frontend` directory with any static HTTP server, for example:
+1. Install Node.js (v18+) and PostgreSQL (v15+).
+2. Create the database `civic-events-db`.
+3. From the `backend` folder, create the tables:
+   `psql -U postgres -h localhost -d "civic-events-db" -f migrations/001_create_tables.sql`
+4. Set your database credentials in `backend/.env`.
+5. Run `npm install`, then `npm run dev`.
+6. The API runs at `http://localhost:4000`.
 
-   ```powershell
-   cd frontend
-   python -m http.server 5500
-   ```
+## Run the frontend
 
-3. Open `http://localhost:5500/index.html`.
+1. The API base URL is set in `frontend/js/config.js`:
+   `const BASE_URL = "http://localhost:4000";`
+2. Open `frontend/index.html` with the VS Code **Live Server** extension, or serve the `frontend` folder with any static server.
+3. Sign up, then log in.
 
-The backend API base URL is configured in `js/config.js` as
-`http://localhost:4000`.
+## Create an admin account
 
-## Main shared files
+Sign-up creates normal users. To make an admin, sign up first, then run:
 
-- `js/config.js`: API base URL.
-- `js/auth.js`: token and user session storage, plus login/admin guards.
-- `js/api.js`: bearer-authenticated jQuery requests and 401/403/network error handling.
-- `js/layout.js`: shared navbar, notification drawer, footer, and toast function.
-- `css/styles.css`: shared accessible fallback styles.
+`psql -U postgres -h localhost -d "civic-events-db" -c "UPDATE users SET role='admin' WHERE email='YOUR_EMAIL';"`
 
-## Role-based guards
+Log out and log in again.
 
-Role-based access checks are implemented in `js/auth.js`:
+## Features
 
-- `requireLogin()` protects authenticated pages.
-- `requireAdmin()` protects admin pages and redirects normal users.
+- Sign up (password strength meter) and login (remember me)
+- Events: list, search, filters, sort, pagination, detail, registration, feedback
+- Admin: create, edit and delete events, announcements (audio) and promos (video + captions)
+- Notifications drawer with unread count
+- Admin dashboard and user management (enable/disable)
+- Profile page, dark mode, responsive mobile menu
 
-Admin-only controls are also rendered only when `Auth.getUser().role === "admin"`.
-The admin guard is used on dashboard and user management pages, as well as event,
-announcement, promo, and broadcast notification management controls. The server
-also authorizes protected API routes; frontend guards improve navigation and
-must not replace backend authorization.
+## Project structure
+
+- `js/config.js`: API base URL
+- `js/auth.js`: token and user storage, role guards
+- `js/api.js`: authenticated requests, 401/403/network error handling
+- `js/layout.js`: navbar, notification drawer, footer, toasts
+- `pages/`: all pages
+- `css/styles.css`: shared styles
+
+## Role-based access guards
+
+- `js/auth.js`: `requireLogin()` protects pages for logged-in users. `requireAdmin()` protects admin pages and redirects normal users.
+- Admin-only buttons and links (add, edit, delete, dashboard, users) are only shown when `Auth.getUser().role === "admin"`.
+- `js/api.js`: a 401 response clears the session and redirects to login. A 403 response shows a forbidden message.
+- Frontend guards only improve the user experience. The backend enforces the real security.
+
+## Known backend limits
+
+The provided backend has no route to create a broadcast notification and no endpoint to mark a notification as read, so read state is stored on the client still working on it though.
